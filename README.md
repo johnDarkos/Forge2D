@@ -2,6 +2,10 @@
 
 React + TypeScript + Vite, менеджер пакетов — pnpm.
 
+Версия Node.js зафиксирована в `.nvmrc` (22.19.0), pnpm — в `package.json`
+(`packageManager: pnpm@12.3.4`). При использовании nvm выполните `nvm install`
+и `nvm use` из корня проекта.
+
 ```sh
 pnpm install
 cp .env.example .env
@@ -57,6 +61,11 @@ Git-хуки управляются Husky. После `pnpm install` скрип�
 Тесты запускаются отдельно: `pnpm test:run` и `pnpm test:e2e`.
 Для повторного подключения хуков используйте `pnpm run prepare`.
 
+GitHub Actions запускает [CI](.github/workflows/ci.yml) при push и pull request:
+установка по lockfile → форматирование → lint → TypeScript → Vitest → сборка →
+Playwright. Установка Chromium и его системных зависимостей выполняется автоматически.
+Подробности и локальный запуск — в [руководстве тестирования](docs/test/testing.md#ci-github-actions).
+
 Prettier настроен в `.prettierrc.json`: отступ 2 пробела, одинарные кавычки
 в JavaScript/TypeScript, без точек с запятой, ширина строки 100, окончания LF.
 `.prettierignore` исключает зависимости, сборку, отчёты, env-файлы и lockfile.
@@ -99,7 +108,7 @@ MVP реализует локальную загрузку → сетку → в
 У каждого добавленного кадра есть миниатюра, поле имени и кнопка удаления.
 Список сохраняется до загрузки другого изображения или перезагрузки страницы.
 
-[Панель Tools](docs/toolbar.md) слева объединяет загрузку, выбор, настройки,
+[Панель Tools](docs/architecture.md#панель-инструментов) слева объединяет загрузку, выбор, настройки,
 масштаб, Preview и экспорт. На узком экране её инструменты можно свернуть.
 
 [FEAT-001: встраивание SpriteEditor](docs/features/sprite-editor-embedding.md) —

@@ -1,7 +1,7 @@
 # Sprite Editor и граница Forge2D
 
 Sprite Editor — независимый инструмент, продуктовое название в интерфейсе —
-Sprite Cutter. Подготовка описана в [исходной спецификации](docs/forge2d-sprite-editor-integration-spec.md).
+Sprite Cutter. Подготовка описана в [исходной спецификации](forge2d-sprite-editor-integration-spec.md).
 Следующий этап **FEAT-001 реализован**: [публичный API и правила](features/sprite-editor-embedding.md).
 
 ```text

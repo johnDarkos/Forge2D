@@ -54,6 +54,45 @@ pnpm exec vitest run --reporter=json --outputFile=/tmp/sprite-cutter-tests.json
 Отдельный инструмент измерения покрытия кода и команда `test:coverage` пока
 не настроены. Число тестов не является процентом покрытия.
 
+## CI: GitHub Actions
+
+Workflow [CI](../../.github/workflows/ci.yml) запускается при каждом push и pull request.
+Один job `Quality checks` на Ubuntu 24.04 выполняет проверки последовательно;
+ошибка любого шага останавливает дальнейшие проверки.
+
+Node.js берётся из `.nvmrc` (22.19.0), pnpm — из поля `packageManager`
+в `package.json` (12.3.4). При обновлении версий меняйте эти файлы:
+workflow читает их напрямую. `pnpm install --frozen-lockfile` запрещает
+неявное обновление `pnpm-lock.yaml`; зависимости кэшируются по lockfile.
+Lockfile также содержит служебную секцию pnpm с зафиксированной версией
+самого менеджера пакетов; её нужно сохранять вместе с зависимостями приложения.
+Husky отключён через `HUSKY=0`, поскольку проверки в CI запускаются отдельными шагами.
+
+Последовательность для локального воспроизведения на тех же версиях Node.js и pnpm:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test:run
+pnpm build
+pnpm exec playwright install --with-deps chromium
+CI=true pnpm test:e2e
+```
+
+Установка системных зависимостей Chromium на Linux может потребовать `sudo`.
+В CI используется браузер, соответствующий установленной версии Playwright;
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` там не задаётся. `CI=true` запрещает
+повторно использовать уже запущенный dev-сервер: Playwright поднимает свой.
+Проверка TypeScript включает отдельный domain-проект без DOM.
+
+При падении браузерных тестов каталог `test-results/` с трассировками сохраняется
+в артефакте `playwright-failure-artifacts` на 7 дней. Логи всех шагов доступны
+во вкладке Actions репозитория. Повторный push в ту же ветку отменяет устаревший
+прогон; ограничение времени job — 20 минут. Workflow проверяет качество,
+публикация приложения не настроена.
+
 ## Организация файлов
 
 Все пути в таблице указаны относительно корня проекта.
