@@ -1,12 +1,12 @@
 # Поток данных Sprite Cutter
 
 Документ описывает текущую реализацию: сетку с Offset/Gap, ручное выделение,
-список именованных вырезок, сайдбар, Zoom/Pan и экспорт PNG/ZIP.
+список именованных кадров, сайдбар, Zoom/Pan, экспорт PNG/ZIP и внешний API FEAT-001.
 Все изображения обрабатываются в браузере. Сессия хранится в памяти;
 перезагрузка страницы очищает её. Backend и сохранение проекта не реализованы.
 
 Связанные документы: [архитектура FSD](architecture.md),
-[типы](typescript.md), [панель Tools](toolbar.md),
+[типы](typescript.md),
 [ручное выделение](manual-selection.md), [тестирование](test/testing.md).
 
 ## 1. Общая схема
@@ -16,7 +16,7 @@
 `App` и `EditorPage` только подключают редактор.
 
 ```text
-App → EditorPage → SpriteEditor
+App / внешний React-хост → SpriteEditor → SpriteEditorSession
                       │
                    useEditor ← callbacks от компонентов
                       │
@@ -32,6 +32,7 @@ App → EditorPage → SpriteEditor
      ├─ SpritePreview                  └─ SpriteThumbnail
      ├─ Add frame                      миниатюры из исходника
      │  только режим manual
+     ├─ Save / Cancel → onSave(result) / onCancel()
      └─ ExportButton
           ├─ PNG → exportFrame → downloadBlob
           └─ ZIP → exportFramesZip → downloadBlob
@@ -49,20 +50,23 @@ Features не импортируют друг друга. Widget связыва�
 В `EditorState` хранятся:
 
 - `source`: `idle`, `loading`, `ready` или `error`. В `ready` находится `sheet`
-  с File, object URL, Image и метаданными, включая исходные размеры.
+  с Image, URL и метаданными. Для локальной загрузки есть File, для внешнего URL file = null.
 - `frameSizeInput`: строки ширины и высоты ячейки.
 - `gridOptionsInput`: строки Offset X/Y и Gap X/Y.
 - `selectionMode`: `grid` или `manual`.
 - `selectedIds` и `activeFrameId`: выбор ячеек и кадр для Preview в режиме сетки.
 - `manualRegion`: завершённая ручная область или `null`.
-- `savedFrames`: массив `NamedSpriteFrame` — геометрия, стабильный ID и имя.
+- `sprites`: единая коллекция публичных `SpriteFrame` — строковый ID, имя и rect.
+- `spriteNumbers`: соответствие строковых ID внутренним номерам карточек/экспорта.
 - `nextManualFrameId`: следующий номер ручной вырезки; удаление не уменьшает его.
 - `viewport`: `{ zoom, x, y }` — масштаб и сдвиг отображения.
 - `isDrawing`: выполняется ли ручной жест.
 - `isExporting`: сигнал от экспортёра для блокировки изменений сессии.
 
 Отдельно внутри `useEditor` находятся запрос загрузки `request`, счётчик запросов
-`sequence` и ошибка проверки файла `uploadError`.
+`sequence`, ошибка проверки файла `uploadError`, состояние Save, ошибка callbacks
+и реестры идентичности кадров. Чистые сохраняемые данные отделены от session-полей
+при вызове createSpriteEditorResult; сама функция не зависит от React.
 
 ### Производные данные
 
@@ -73,6 +77,7 @@ source.ready → sheet
 sheet + frameSizeInput + gridOptionsInput → validateGrid
 валидная сетка → generateFrames → geometry
 geometry + selectedIds → frames с флагом selected → selectedFrames
+sprites + spriteNumbers → savedFrames для карточек и PNG/ZIP
 manualRegion → regionFrame с геометрией для Preview и exportFrame
 режим + выбор → preview.frame и exportButton.frames
 ```
@@ -95,7 +100,8 @@ manualRegion → regionFrame с геометрией для Preview и exportFra
 ## 3. Загрузка изображения
 
 ```text
-Tools / Image → SpriteUploader → onFileSelected(File)
+Внешний image.src ─────────────────────┐
+Tools / Image → onFileSelected(File) ──┘
   → source.loading + новый request
   → useEffect: object URL + Image
   → onload → source.ready(sheet)
@@ -112,6 +118,23 @@ Tools / Image → SpriteUploader → onFileSelected(File)
    При ошибке источник получает статус `error`, URL освобождается.
 5. Очистка эффекта помечает предыдущий запрос отменённым. Поздний `onload`
    старого файла не может перезаписать новую загрузку.
+
+### Внешний источник и initialData
+
+Если передан `image`, он загружается автоматически, а file picker заблокирован.
+`SpriteEditorSession` имеет key по `image.src`: смена src размонтирует старую
+сессию и создаёт новую с актуальными initialData. Одинаковый src сохраняет правки,
+даже если родитель передаёт новые объекты props; для принудительной повторной
+инициализации того же src используется React key на SpriteEditor.
+
+Начальные sprites и grid копируются. После декодирования проверяются ID,
+прямоугольники и заданные grid settings. Ошибка инициализации отображается в UI
+и блокирует Save. В standalone initialData применяется к первому локальному файлу.
+Последующие локальные файлы очищают кадры; удаление image prop возвращает новую
+standalone-сессию. Внешний blob URL редактор не отзывает.
+
+HTTP(S) загружается с anonymous CORS; сервер должен разрешать чтение изображения.
+MIME/размер внешнего файла неизвестны (null), размеры source берутся из Image.
 
 ## 4. Сайдбар и управление видом
 
@@ -207,17 +230,22 @@ Escape, pointer cancellation и потеря захвата удаляют че�
 
 ```text
 Add frame в сайдбаре → manualFrames.onAdd
-  → копия manualRegion + nextManualFrameId + имя frame_NNN
-  → savedFrames, следующий ID, manualRegion = null
+  → manualFrameToSprite: rect + уникальный строковый ID + имя frame_NNN
+  → sprites + spriteNumbers, следующий UI-номер, manualRegion = null
   → ManualFrames под холстом → SpriteThumbnail из исходного Image
 
-Поле имени → onRename(id, name) → новый объект в savedFrames
-Remove     → onRemove(id)       → список без указанного ID
+Поле имени → onRename(id, name) → renameSprite → новый объект в sprites
+Remove     → onRemove(id)       → removeSprite → коллекция без указанного ID
 ```
 
 Новая рамка не изменяет добавленные вырезки. ID и порядок оставшихся кадров
 сохраняются при удалении; имена не перенумеровываются. Переименование меняет
 только имя. Экспорт не очищает список.
+
+В коллекцию также входят initialData.sprites и выбранные ячейки сетки при переходе
+в manual. Они отображаются теми же карточками в обоих режимах. gridFrameToSprite
+преобразует ячейку в тот же публичный формат; совпадение с rect имеющегося кадра
+использует его ID и имя. UI-номера карточек не попадают в публичный результат.
 
 ## 7. Preview и экспорт PNG/ZIP
 
@@ -270,9 +298,10 @@ ExportButton → снимок выбранного списка, сортиро�
 
 - **Новый поддерживаемый файл**: очищает оба вида выбора и список, сбрасывает ID
   списка, жест и viewport. Режим и параметры сетки остаются.
-- **Смена режима**: очищает выбор сетки и текущую ручную область; список ручных
-  вырезок, параметры сетки и viewport остаются. Нажатие уже активного режима ничего не меняет.
-- **Изменение сетки**: очищает выбор ячеек и активный кадр.
+- **Смена режима**: перед переходом из grid выбранные ячейки добавляются в sprites;
+  текущий выбор сетки и ручная рамка очищаются. Коллекция, параметры сетки и viewport
+  остаются. Нажатие уже активного режима ничего не меняет.
+- **Изменение сетки**: очищает текущий выбор ячеек и активный кадр, но не коллекцию.
 - **Clear region**: очищает только текущую ручную область.
 - **Add frame**: добавляет её копию в список и очищает текущую область.
 - **Escape во время жеста**: отменяет черновик, сохраняя прежнюю область и список.
@@ -296,9 +325,9 @@ ExportButton → снимок выбранного списка, сортиро�
 
 ```text
 Загрузить test.png → Select region
-  → обвести персонажа → Preview → Add frame → savedFrames[0]
+  → обвести персонажа → Preview → Add frame → sprites[0]
   → имя idle
-  → обвести следующего → Add frame → savedFrames[1]
+  → обвести следующего → Add frame → sprites[1]
   → имя idle
   → Export ZIP
   → test_sprites.zip: idle.png + idle_2.png
@@ -307,7 +336,32 @@ ExportButton → снимок выбранного списка, сортиро�
 Обе записи содержат пиксели соответствующих областей исходника. Панель и Canvas
 могут отображаться в другом масштабе — геометрия сохранённых кадров остаётся прежней.
 
-## 11. Проверки и граница Forge2D
+## 11. Save и Cancel
+
+```text
+Save в EditorSidebar → actions.onSave
+  → снимок sprites + текущих выбранных ячеек grid (без повторения ID)
+  → createSpriteEditorResult: валидация и копирование разрешённых полей
+  → { source: { width, height }, sprites: [{ id, name, rect }], settings }
+  → внешний onSave(result)
+
+Cancel → actions.onCancel → внешний onCancel()
+```
+
+Кнопки отображаются при наличии соответствующих callbacks. Save недоступен
+без готового изображения, при невалидной сетке в grid-режиме, во время жеста,
+экспорта и предыдущего Save. Ручную рамку перед Save нужно добавить или очистить.
+Пустой массив sprites допустим. Для manual результат не содержит settings.grid.
+В результате нет File, Image, URL, selected, временной рамки, zoom/pan или sidebar.
+
+Хост получает независимые вложенные объекты и не может их изменением испортить
+редактор. Если onSave возвращает Promise, редактор ожидает завершения и блокирует
+изменения кадров/источника, PNG/ZIP и повторные Save/Cancel. Ошибки callbacks
+перехватываются, показываются в UI и допускают повтор. Завершение старого callback
+после смены src не меняет новую сессию. Cancel не закрывает страницу и не сбрасывает
+данные: действие определяется хостом. Save не создаёт файлов и не вызывает downloadBlob.
+
+## 12. Проверки и граница Forge2D
 
 `src/test/mvp` проверяет базовый поток, `src/test/v02` — Offset/Gap, Zoom и ZIP,
 `src/test/manual` — геометрию рамки, список, имена, блокировки и ошибки.
@@ -318,8 +372,9 @@ Playwright в `tests/browser` проверяет пиксели реальног
 клавиатуру, сворачивание и отсутствие горизонтального переполнения.
 Команды и ограничения приведены в [руководстве тестирования](test/testing.md).
 
-`SpriteEditorResult` пока остаётся контрактом будущей интеграции: описание
-источника и геометрия кадров без DOM, object URL и selected. Текущий список
-с именами, viewport и состояние панели автоматически в этот контракт не добавлены.
-Save-flow и передача результата в Forge2D не реализованы.
-Подробнее: [граница интеграции](ecosystem-integration.md).
+FEAT-001 реализует публичный результат и его передачу через onSave. Начальные
+данные и изображение приходят от хоста; Project Store и сохранение проекта
+по-прежнему не входят в SpriteEditor. API проверяется в src/test/embedding,
+браузерный хост — tests/fixtures/embedded.html, сценарии — tests/browser/embedding.spec.ts.
+Подробности: [контракт FEAT-001](features/sprite-editor-embedding.md) и
+[граница интеграции](ecosystem-integration.md).

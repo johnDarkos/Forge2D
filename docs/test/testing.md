@@ -6,7 +6,7 @@
 
 ## Текущее состояние
 
-Актуальный полный прогон после сайдбара: **132 Vitest и 12 Playwright**,
+Актуальный полный прогон после FEAT-001: **152 Vitest и 16 Playwright**,
 все проверки проходят. Числа ниже для MVP и интеграции отражают историю этапов.
 
 Тесты написаны до реализации MVP; сейчас основной сценарий реализован. Зафиксированный первый прогон содержит
@@ -332,3 +332,28 @@ pnpm exec playwright test tests/browser/collection.spec.ts
 Скриншоты: `test-results/sidebar-1280.png` и `sidebar-390.png`.
 Существующие тесты PNG/ZIP дополнительно проверяют точность координат после
 переноса управления видом из Canvas в общую модель сессии.
+
+## FEAT-001: внешний API
+
+`src/test/embedding/domain.test.ts` содержит 12 проверок чистого снимка,
+нормализации grid/manual, rename/delete и валидации ID, source, grid и rect.
+`src/test/embedding/editor.test.tsx` содержит 8 сценариев загрузки через image,
+initialData, Save/Cancel, смены src, гонок, ошибок и ожидания callbacks, владения
+URL, независимости выходных объектов и возврата к standalone.
+
+RED: 18 новых тестов падают на отсутствующем API. GREEN: эти 18 и две
+дополнительные проверки асинхронного Save и standalone-инициализации проходят.
+Прежняя проверка типа результата обновлена по утверждённому FEAT-001 контракту:
+source/sprites/settings вместо source/frames. Геометрические ожидания MVP сохранены;
+импорт внутреннего SpriteFrame заменён на GridFrame.
+
+`tests/browser/embedding.spec.ts` содержит четыре сценария: смешанные grid/manual
+кадры, rename/delete/Save/Cancel без скачивания; замена src; data URL; HTTPS с CORS
+через перехватчик Playwright. Последние два сценария проверяют также успешный PNG-экспорт.
+Хост `tests/fixtures/embedded.html` монтирует настоящий публичный SpriteEditor в StrictMode,
+принимает результат в React-состояние и не подменяет реализацию редактора.
+
+```sh
+pnpm exec vitest run src/test/embedding
+pnpm exec playwright test tests/browser/embedding.spec.ts
+```

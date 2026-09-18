@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 
-export type { SpriteFrame as Frame, GenerateFrames } from '@/entities/sprite'
+export type { GridFrame as Frame, GenerateFrames } from '@/entities/sprite'
 export type { ExportFrame } from '@/features/export-sprites'
 import type { GenerateFrames } from '@/entities/sprite'
 import type { ExportFrame } from '@/features/export-sprites'

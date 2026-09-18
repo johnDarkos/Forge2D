@@ -33,7 +33,9 @@ export function SpriteEditorView(props: SpriteEditorViewProps) {
             </div>
             <SpriteCanvas key={sheet?.url ?? 'empty'} {...props.canvas} />
           </section>
-          {props.canvas.mode === 'manual' && <ManualFrames {...props.manualFrames} />}
+          {(props.canvas.mode === 'manual' || props.manualFrames.frames.length > 0) && (
+            <ManualFrames {...props.manualFrames} />
+          )}
         </div>
       </div>
     </main>

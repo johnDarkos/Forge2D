@@ -13,7 +13,7 @@ export interface SpriteFrameGeometry {
 }
 
 /** selected вычисляется из набора выбранных ID в сессии. */
-export interface SpriteFrame extends SpriteFrameGeometry {
+export interface GridFrame extends SpriteFrameGeometry {
   selected: boolean
 }
 
@@ -79,17 +79,11 @@ export type GenerateFrames = (
   frameWidth: number,
   frameHeight: number,
   options?: GridOptions,
-) => SpriteFrame[]
+) => GridFrame[]
 
 /** Сериализуемое описание исходника, без файла и URL браузера. */
 export interface SpriteEditorSource {
   readonly fileName: string
   readonly width: number
   readonly height: number
-}
-
-/** Граница интеграции; способ сохранения и состав кадров определяет будущий Save-flow. */
-export interface SpriteEditorResult {
-  readonly source: SpriteEditorSource
-  readonly frames: readonly SpriteFrameGeometry[]
 }

@@ -3,7 +3,10 @@ import type {
   FrameSizeInput,
   GridOptionsInput,
   LoadedSpriteSheet,
-  NamedSpriteFrame,
+  SpriteFrame,
+  SpriteEditorImage,
+  SpriteEditorInitialData,
+  SpriteEditorResult,
   SpriteFrameId,
 } from '@/entities/sprite'
 import type { ManualFramesProps } from '@/features/manage-manual-frames'
@@ -16,7 +19,7 @@ import type { SpritePreviewProps } from '@/entities/sprite'
 /** Взаимоисключающие состояния исключают ready без загруженного ресурса. */
 export type ImageLoadState =
   | { readonly status: 'idle' }
-  | { readonly status: 'loading'; readonly file: File; readonly requestId: number }
+  | { readonly status: 'loading'; readonly file: File | null; readonly requestId: number }
   | { readonly status: 'ready'; readonly sheet: LoadedSpriteSheet }
   | { readonly status: 'error'; readonly error: UploadError }
 
@@ -25,7 +28,8 @@ export interface EditorState {
   readonly viewport: CanvasViewport
   readonly selectionMode: SelectionMode
   readonly manualRegion: CropRect | null
-  readonly savedFrames: readonly NamedSpriteFrame[]
+  readonly sprites: readonly SpriteFrame[]
+  readonly spriteNumbers: ReadonlyMap<string, number>
   readonly nextManualFrameId: number
   readonly isDrawing: boolean
   readonly source: ImageLoadState
@@ -37,11 +41,26 @@ export interface EditorState {
 }
 
 export interface SpriteEditorProps {
+  readonly image?: SpriteEditorImage
+  readonly initialData?: SpriteEditorInitialData
+  readonly onSave?: (result: SpriteEditorResult) => void
+  readonly onCancel?: () => void
   readonly initialFrameSize?: FrameSizeInput
 }
 
 /** Контракт представления; контейнер подготовит данные и обработчики из сессии. */
 export interface SpriteEditorViewProps {
+  readonly actions: {
+    readonly showSave: boolean
+    readonly showCancel: boolean
+    readonly saveDisabled: boolean
+    readonly cancelDisabled: boolean
+    readonly saving: boolean
+    readonly error: string | null
+    readonly hint: string | null
+    readonly onSave: () => void
+    readonly onCancel: () => void
+  }
   readonly manualFrames: ManualFramesProps
   readonly uploader: SpriteUploaderProps
   readonly settings: GridSettingsProps

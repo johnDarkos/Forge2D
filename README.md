@@ -75,10 +75,10 @@ MVP реализует локальную загрузку → сетку → в
 Подробности — в [руководстве тестирования](docs/test/testing.md#playwright-настоящие-png).
 
 [Граница интеграции Forge2D](docs/ecosystem-integration.md): независимый SpriteEditor,
-чистый domain API и тип результата без UI-состояния. Save-flow отложен.
+чистый domain API и результат без UI-состояния. Реализованы внешний image, initialData, Save/onSave и Cancel/onCancel.
 
 Реализация и тесты: [v0.2 — контракты и история TDD](docs/test/v02.md).
-После добавления сайдбара полный набор: 132 Vitest и 12 Playwright, все GREEN.
+После FEAT-001 полный набор: 152 Vitest и 16 Playwright, все GREEN.
 
 ## Возможности v0.2
 
@@ -101,3 +101,8 @@ MVP реализует локальную загрузку → сетку → в
 
 [Панель Tools](docs/toolbar.md) слева объединяет загрузку, выбор, настройки,
 масштаб, Preview и экспорт. На узком экране её инструменты можно свернуть.
+
+[FEAT-001: встраивание SpriteEditor](docs/features/sprite-editor-embedding.md) —
+внешнее изображение, начальные кадры, типизированный результат и callbacks.
+Тестовый хост доступен при `pnpm dev` по `/tests/fixtures/embedded.html`.
+Save возвращает метаданные владельцу; сохранение проекта Forge2D не реализовано.

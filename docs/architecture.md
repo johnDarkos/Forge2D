@@ -38,8 +38,8 @@ canvas; линии сетки не попадают в скачанный фай
 SpriteEditor уже является самостоятельным UI-модулем; App/EditorPage остаются
 standalone shell. Domain API `entities/sprite/domain.ts` импортирует только чистые
 типы и функции. DOM-ресурсы выделены в `model/browser-types.ts`; прежний UI API
-сохранён. Результат интеграции описан типами SpriteEditorSource/SpriteEditorResult,
-без selected и браузерных объектов. Save-flow не добавлен; v0.2 реализован отдельным этапом.
+сохранён. Результат интеграции теперь реализован по FEAT-001: SpriteSource/SpriteEditorResult,
+без selected и браузерных объектов. Save/Cancel возвращают управление внешнему хосту.
 Подробности: [подготовка к Forge2D](ecosystem-integration.md).
 
 ## v0.2
@@ -66,7 +66,8 @@ Feature export-sprites выбирает имя `selection.png` для ручно
 
 ## Список ручных вырезок
 
-`NamedSpriteFrame` в entities/sprite добавляет имя к геометрии кадра.
+`SpriteFrame` описывает публичный кадр: строковый ID, имя и rect.
+`NamedSpriteFrame` служит адаптером к прежним карточкам и PNG/ZIP-экспорту с числовыми UI-номерами.
 `SpriteThumbnail` рисует вырезку из исходного изображения без Blob/Object URL.
 Новая feature `manage-manual-frames` показывает список и отправляет события
 добавления, переименования и удаления. Состояние списка и следующий ID принадлежат
@@ -90,3 +91,19 @@ select-sprite и управляет режимом, массовым выбор�
 экспорт остаётся внизу. На узком экране панель располагается над холстом,
 Hide tools / Show tools сворачивают инструменты без сброса данных.
 Список сохранённых кадров остаётся под холстом. [Инструкция](toolbar.md).
+
+## External API (FEAT-001)
+
+`SpriteEditor` создаёт `SpriteEditorSession` с key по внешнему `image.src`.
+Внутри сессии `useEditor` владеет изображением, domain-коллекцией `sprites` и
+отдельными session-полями. Новые объекты props с тем же src не сбрасывают изменения.
+Входные URL принадлежат хосту; локальные object URL — загрузчику.
+
+`createSpriteEditorResult`, нормализация сетки/ручных рамок, rename/delete находятся
+в чистом domain. Save/Cancel компонует widget через `actions` в сайдбаре.
+Экспорт файлов остаётся отдельной feature. Родитель получает проверенный снимок
+с именами и ID, без браузерных ресурсов, UI-состояния и решения о месте хранения.
+Кадры initialData, ручные вырезки и сохранённые при смене режима ячейки образуют
+одну коллекцию; карточки видны в обоих режимах.
+
+[Контракт и пограничные случаи](features/sprite-editor-embedding.md).

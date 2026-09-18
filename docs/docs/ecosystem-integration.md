@@ -14,3 +14,7 @@ Sprite Editor является независимым инструментом.
 2. embedded mode внутри Forge2D Editor.
    Актуальный документ подготовки и границы данных:
    [docs/ecosystem-integration.md](../ecosystem-integration.md).
+
+FEAT-001 реализует API встраивания: image, initialData, onSave и onCancel.
+Связь с реальным Forge2D Project Store пока не реализована.
+[Контракт FEAT-001](../features/sprite-editor-embedding.md).

@@ -14,6 +14,7 @@ export function EditorSidebar({
   preview,
   manualFrames,
   exportButton,
+  actions,
 }: SpriteEditorViewProps) {
   const manual = canvas.mode === 'manual'
   const [collapsed, setCollapsed] = useState(false)
@@ -65,6 +66,25 @@ export function EditorSidebar({
         </section>
       </div>
       <div className="tool-export">
+        {(actions.showSave || actions.showCancel) && (
+          <div className="session-actions">
+            <h2>Editing session</h2>
+            <div className="session-action-buttons">
+              {actions.showSave && (
+                <button type="button" disabled={actions.saveDisabled} onClick={actions.onSave}>
+                  {actions.saving ? 'Saving…' : 'Save'}
+                </button>
+              )}
+              {actions.showCancel && (
+                <button type="button" disabled={actions.cancelDisabled} onClick={actions.onCancel}>
+                  Cancel
+                </button>
+              )}
+            </div>
+            {actions.showSave && actions.hint && <p className="muted">{actions.hint}</p>}
+            {actions.error && <p role="alert">{actions.error}</p>}
+          </div>
+        )}
         <h2>Export</h2>
         <p className="selection-status">
           {manual

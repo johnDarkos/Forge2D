@@ -1,54 +1,50 @@
-# Подготовка Sprite Editor к Forge2D
+# Sprite Editor и граница Forge2D
 
-Sprite Editor — самостоятельный инструмент. Текущее продуктовое название
-в интерфейсе остаётся Sprite Cutter, имя репозитория не меняется.
-Спецификация этапа: [Forge2D integration](docs/forge2d-sprite-editor-integration-spec.md).
+Sprite Editor — независимый инструмент, продуктовое название в интерфейсе —
+Sprite Cutter. Подготовка описана в [исходной спецификации](docs/forge2d-sprite-editor-integration-spec.md).
+Следующий этап **FEAT-001 реализован**: [публичный API и правила](features/sprite-editor-embedding.md).
 
 ```text
-Сегодня: браузер → App → EditorPage → SpriteEditor → sprite domain
-Позже:   Forge2D Editor → тот же SpriteEditor → sprite domain
+Standalone: App → EditorPage → SpriteEditor → sprite domain
+Embedded:   внешний React-хост → SpriteEditor → sprite domain
+                     ↑                │
+                     └─ onSave(result)┘
 ```
 
-Фактическая граница уже существует: `src/widgets/sprite-editor`, публичный
-экспорт SpriteEditor. Он владеет сессией через useEditor. App — standalone shell,
-подключающий EditorPage. Дублирующий редактор и массовый перенос модулей не нужны.
+Публичная точка входа — `src/widgets/sprite-editor`. Компонент принимает `image`,
+`initialData`, `onSave`, `onCancel`; прежний `initialFrameSize` сохранён.
+Без props работает standalone загрузка и PNG/ZIP-экспорт.
 
-Domain состоит из чистых типов model/types.ts и функций lib в entities/sprite.
-Отдельная точка входа `entities/sprite/domain.ts` позволяет использовать их без
-загрузки React-компонентов. Браузерные ресурсы и props preview находятся отдельно
-в model/browser-types.ts. Общий UI API entities/sprite сохраняется для MVP.
-Domain не зависит от React, DOM, Canvas, Forge2D Engine или engine runtime.
-Проверка tsconfig.domain.json компилирует этот граф без DOM и внешних ambient types.
+Чистые типы FEAT-001 находятся в `entities/sprite/model/editor-types.ts`,
+геометрия сетки — в `model/types.ts`. `entities/sprite/domain.ts` предоставляет
+типы и функции без React, DOM, Canvas или engine runtime. Браузерный ресурс
+выделен в `model/browser-types.ts`. `tsconfig.domain.json` проверяет чистый граф
+без DOM и внешних ambient types.
 
-## Граница данных
+## Данные и сохранение
 
-Публичные типы SpriteEditorSource и SpriteEditorResult экспортируются из
-widgets/sprite-editor (type-only) и из domain. Source описывает только исходник:
-fileName, width, height. Result содержит source и массив SpriteFrameGeometry:
-id, row, column, x, y, width, height. В результате нет selected, File, Image,
-Canvas, URL ресурса или состояния React.
+Публичный `SpriteFrame` содержит `id: string`, `name`, `rect`.
+`SpriteEditorResult` содержит `source: { width, height }`, `sprites` и `settings`.
+`createSpriteEditorResult` валидирует данные и создаёт независимый снимок.
+В результате нет File, Image, URL, selected, zoom/pan или состояния панели.
 
-Тип описывает передаваемые кадры; выбор состава результата и создание снимка
-будут определены отдельной задачей Save. Сейчас не добавляются неработающие props
-initialSource/onSave: одних метаданных initialSource недостаточно для загрузки
-пикселей, а Save-flow явно отложен шагом 4 спецификации. Существующий
-initialFrameSize продолжает работать. JSON-файлы и анимации не реализуются.
+Save передаёт метаданные через `onSave`, Cancel вызывает `onCancel`.
+Куда сохранять результат и закрывать ли редактор, решает родитель.
+`exportFrame` и `downloadBlob` по-прежнему относятся к браузерному экспорту
+и не импортируются domain. Экспорт PNG/ZIP не подменяет Save.
 
-## Экспорт и сохранение
+Изменён предварительный контракт результата: вместо `frames` с внутренней
+геометрией используются `sprites` с именами и строковыми ID. Внутренние ячейки
+называются `GridFrame`; runtime-контракт генерации сетки не изменён.
 
-exportFrame(image, frame): Promise<Blob> остаётся браузерной утилитой feature
-export-sprites. downloadBlob отдельно выполняет скачивание, а не формирует
-метаданные. Domain не импортирует ни одну из этих функций.
-Текущий редактор сохраняет PNG-экспорт. В будущем потребитель данных сможет
-выбрать способ сохранения результата; полноценный embedded Save ещё не реализован.
+## Что остаётся за пределами редактора
 
-## Ограничения этапа
+Зависимостей от Forge2D Engine, PixiJS, игровых Scene/Entity, Steam/Yandex нет.
+Не добавлены Project Store, Asset Manager, IndexedDB, backend, project.json,
+autosave или plugin system. Подключение Save к реальному Forge2D ещё предстоит.
+Общие CSS-стили пока требуют согласования с оформлением хоста.
+Monorepo и извлечение sprite-core откладываются до второго реального потребителя.
 
-Никаких engine/runtime/platform зависимостей, backend или plugin system.
-Monorepo и извлечение sprite-core откладываются до появления второго реального
-потребителя. На этапе подготовки интеграции v0.2 не добавлялся; затем
-он реализован отдельной задачей, без изменения границы Forge2D.
-
-Baseline до изменений: 52 Vitest, 4 Playwright, typecheck и lint GREEN.
-Новые проверки касаются только границы редактора, domain и типа результата.
-Архитектура приложения: [architecture.md](architecture.md).
+Тестовый хост: `/tests/fixtures/embedded.html` при запуске Vite.
+Проверки API: `src/test/embedding` и `tests/browser/embedding.spec.ts`.
+Архитектура: [architecture.md](architecture.md). Поток данных: [data-flow.md](data-flow.md).

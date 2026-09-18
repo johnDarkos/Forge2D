@@ -2,7 +2,7 @@
 import { expect, expectTypeOf, test } from 'vitest'
 import { generateFrames, validateGrid } from '@/entities/sprite/domain'
 import type { SpriteEditorResult, SpriteEditorSource } from '@/widgets/sprite-editor'
-import type { SpriteFrameGeometry } from '@/entities/sprite/domain'
+import type { SpriteFrame } from '@/entities/sprite/domain'
 
 test('public domain runs without browser globals', () => {
   expect(typeof document).toBe('undefined')
@@ -20,9 +20,7 @@ test('integration result exposes data without UI selection or browser resources'
     readonly width: number
     readonly height: number
   }>()
-  expectTypeOf<SpriteEditorResult['frames'][number]>().toEqualTypeOf<SpriteFrameGeometry>()
-  expectTypeOf<keyof SpriteEditorResult>().toEqualTypeOf<'source' | 'frames'>()
-  expectTypeOf<keyof SpriteFrameGeometry>().toEqualTypeOf<
-    'id' | 'row' | 'column' | 'x' | 'y' | 'width' | 'height'
-  >()
+  expectTypeOf<SpriteEditorResult['sprites'][number]>().toEqualTypeOf<SpriteFrame>()
+  expectTypeOf<keyof SpriteEditorResult>().toEqualTypeOf<'source' | 'sprites' | 'settings'>()
+  expectTypeOf<keyof SpriteFrame>().toEqualTypeOf<'id' | 'name' | 'rect'>()
 })

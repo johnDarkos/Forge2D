@@ -1,6 +1,6 @@
 import * as domain from '@/entities/sprite/domain'
 import * as exporter from '@/features/export-sprites'
-import type { SpriteFrame, SpriteFrameGeometry } from '@/entities/sprite/domain'
+import type { GridFrame, SpriteFrameGeometry } from '@/entities/sprite/domain'
 
 export interface GridOptions {
   offsetX: number
@@ -14,7 +14,7 @@ export type GenerateGrid = (
   frameWidth: number,
   frameHeight: number,
   options?: GridOptions,
-) => SpriteFrame[]
+) => GridFrame[]
 // The existing four-argument contract remains valid; v0.2 adds an optional fifth argument.
 export const generateGrid = domain.generateFrames as GenerateGrid
 

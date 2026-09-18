@@ -1,4 +1,4 @@
-import type { CropRect, LoadedSpriteSheet, SpriteFrame, SpriteFrameId } from '@/entities/sprite'
+import type { CropRect, LoadedSpriteSheet, GridFrame, SpriteFrameId } from '@/entities/sprite'
 
 export type SelectionMode = 'grid' | 'manual'
 
@@ -20,7 +20,7 @@ export interface SpriteCanvasProps {
   readonly onRegionChange: (region: CropRect | null) => void
   readonly onDrawingChange: (drawing: boolean) => void
   readonly sheet: LoadedSpriteSheet | null
-  readonly frames: readonly SpriteFrame[]
+  readonly frames: readonly GridFrame[]
   readonly disabled?: boolean
   readonly onSelectAll: () => void
   readonly onClearSelection: () => void
