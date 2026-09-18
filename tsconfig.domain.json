@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.domain.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": [],
+    "skipLibCheck": false
+  },
+  "include": ["src/entities/sprite/domain.ts"]
+}

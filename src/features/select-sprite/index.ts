@@ -1,0 +1,5 @@
+export { SpriteCanvas } from './ui/SpriteCanvas'
+export { SpriteCanvasTools } from './ui/SpriteCanvasTools'
+export type { CanvasViewport, SpriteCanvasToolsProps } from './model/types'
+export type { SpriteCanvasProps } from './model/types'
+export type { SelectionMode } from './model/types'

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-ssr/
+.git/
+.husky/_/
+.vite/
+.pnpm-store/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+pnpm-lock.yaml
+.env
+.env.*
