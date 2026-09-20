@@ -4,23 +4,18 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SpriteEditor } from '@/widgets/sprite-editor'
 import type { SpriteEditorResult } from '@/widgets/sprite-editor'
 import { installBrowser } from '../mvp/browser'
+import { installPointerEvents, uninstallPointerEvents } from '../pointer'
 
 let browser: ReturnType<typeof installBrowser>
 beforeEach(() => {
   browser = installBrowser()
-  vi.stubGlobal('PointerEvent', MouseEvent)
-  Object.defineProperties(HTMLCanvasElement.prototype, {
-    setPointerCapture: { configurable: true, value: vi.fn<() => void>() },
-    releasePointerCapture: { configurable: true, value: vi.fn<() => void>() },
-    hasPointerCapture: { configurable: true, value: () => true },
-  })
+  installPointerEvents()
 })
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
-  for (const name of ['setPointerCapture', 'releasePointerCapture', 'hasPointerCapture'])
-    Reflect.deleteProperty(HTMLCanvasElement.prototype, name)
+  uninstallPointerEvents()
 })
 const sprites = [
   { id: 'abc', name: 'idle', rect: { x: 0, y: 0, width: 32, height: 32 } },
@@ -143,7 +138,9 @@ test('Cancel notifies the parent without downloads or destroying the editor; Sav
   await screen.findByText('player.png')
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: 'Save' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(/save/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Unable to save sprites. Please try again.',
+  )
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(onSave).toHaveBeenCalledTimes(2)
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -191,7 +188,11 @@ test('missing or broken image and invalid initial rectangles never enable Save',
       onSave={onSave}
     />,
   )
-  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/initial|bound|rect/i))
+  await waitFor(() =>
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Invalid initial data: Sprite rectangle must use whole pixels within source bounds',
+    ),
+  )
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   expect(onSave).not.toHaveBeenCalled()
 })
@@ -232,7 +233,9 @@ test('async Save locks editing, isolates returned objects and unlocks after reje
   await act(async () => {
     rejectSave(new Error('Host unavailable'))
   })
-  expect(await screen.findByRole('alert')).toHaveTextContent(/save/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Unable to save sprites. Please try again.',
+  )
   expect(screen.getByRole('textbox', { name: 'Frame 1 name' })).toHaveValue('idle')
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(onSave.mock.calls[1][0].sprites).toEqual([sprites[0]])
@@ -262,4 +265,142 @@ test('removing external image returns to standalone upload and initialData hydra
   await screen.findByText('another.png')
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(onSave.mock.calls[1][0].sprites).toEqual([])
+})
+
+test('a grid cell matching a saved rect reuses its ID and name instead of adding a duplicate', async () => {
+  const onSave = vi.fn<(result: SpriteEditorResult) => void>()
+  const saved = { id: 'abc', name: 'idle', rect: { x: 64, y: 32, width: 32, height: 32 } }
+  render(
+    <SpriteEditor
+      image={external()}
+      initialData={{ sprites: [saved], settings: { mode: 'grid' } }}
+      onSave={onSave}
+    />,
+  )
+  await screen.findByText('player.png')
+  fireEvent.click(canvas(), { clientX: 70, clientY: 40 })
+  expect(screen.getByText('Selected frames: 1')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(onSave).toHaveBeenCalledExactlyOnceWith({
+    source: { width: 256, height: 128 },
+    sprites: [saved],
+    settings: {
+      mode: 'grid',
+      grid: { cellWidth: 32, cellHeight: 32, offsetX: 0, offsetY: 0, gapX: 0, gapY: 0 },
+    },
+  })
+})
+
+test('an imported ID equal to a generated grid ID keeps both frames apart', async () => {
+  const onSave = vi.fn<(result: SpriteEditorResult) => void>()
+  const clashing = {
+    id: 'grid-0-0-32-32',
+    name: 'imported',
+    rect: { x: 96, y: 0, width: 32, height: 32 },
+  }
+  render(
+    <SpriteEditor
+      image={external()}
+      initialData={{ sprites: [clashing], settings: { mode: 'grid' } }}
+      onSave={onSave}
+    />,
+  )
+  await screen.findByText('player.png')
+  fireEvent.click(canvas(), { clientX: 1, clientY: 1 })
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(onSave.mock.calls[0][0].sprites).toEqual([
+    clashing,
+    { id: 'grid-0-0-32-32-2', name: 'frame_001', rect: { x: 0, y: 0, width: 32, height: 32 } },
+  ])
+})
+
+test('an imported ID equal to the next manual ID keeps both frames apart', async () => {
+  const onSave = vi.fn<(result: SpriteEditorResult) => void>()
+  const clashing = {
+    id: 'sprite-2',
+    name: 'imported',
+    rect: { x: 0, y: 0, width: 16, height: 16 },
+  }
+  render(
+    <SpriteEditor
+      image={external()}
+      initialData={{ sprites: [clashing], settings: { mode: 'manual' } }}
+      onSave={onSave}
+    />,
+  )
+  await screen.findByText('player.png')
+  const node = canvas()
+  fireEvent.pointerDown(node, { clientX: 110, clientY: 10, button: 0, pointerId: 1 })
+  fireEvent.pointerMove(node, { clientX: 150, clientY: 60, pointerId: 1 })
+  fireEvent.pointerUp(node, { clientX: 150, clientY: 60, button: 0, pointerId: 1 })
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Add frame' }))
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(onSave.mock.calls[0][0].sprites).toEqual([
+    clashing,
+    { id: 'sprite-2-2', name: 'frame_002', rect: { x: 110, y: 10, width: 40, height: 50 } },
+  ])
+})
+
+test('a Cancel handler that throws reports the failure and keeps the session alive', async () => {
+  const onCancel = vi.fn<() => void>().mockImplementationOnce(() => {
+    throw new Error('Host refused Cancel')
+  })
+  render(<SpriteEditor image={external()} onCancel={onCancel} />)
+  await screen.findByText('player.png')
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Unable to cancel. Please try again.')
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(onCancel).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Sprite sheet')).toBeInTheDocument()
+  expect(browser.downloads).toHaveLength(0)
+})
+
+test('a Cancel handler that rejects reports the failure once the promise settles', async () => {
+  const onCancel = vi
+    .fn<() => void>()
+    .mockImplementationOnce(() => Promise.reject(new Error('Host is offline')))
+  render(<SpriteEditor image={external()} onCancel={onCancel} />)
+  await screen.findByText('player.png')
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await waitFor(() =>
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to cancel. Please try again.'),
+  )
+  expect(screen.getByLabelText('Sprite sheet')).toBeInTheDocument()
+})
+
+test('initialFrameSize seeds the grid and explicit initial grid settings take priority', async () => {
+  const view = render(
+    <SpriteEditor image={external()} initialFrameSize={{ width: '64', height: '16' }} />,
+  )
+  await screen.findByText('player.png')
+  expect(screen.getByRole('spinbutton', { name: 'Frame width' })).toHaveValue(64)
+  expect(screen.getByRole('spinbutton', { name: 'Frame height' })).toHaveValue(16)
+  expect(screen.getByText('Frames: 32')).toBeInTheDocument()
+  view.unmount()
+  render(
+    <SpriteEditor
+      image={external()}
+      initialFrameSize={{ width: '64', height: '16' }}
+      initialData={{
+        settings: {
+          grid: { cellWidth: 40, cellHeight: 20, offsetX: 4, offsetY: 2, gapX: 3, gapY: 1 },
+        },
+      }}
+    />,
+  )
+  await screen.findByText('player.png')
+  expect(screen.getByRole('spinbutton', { name: 'Frame width' })).toHaveValue(40)
+  expect(screen.getByRole('spinbutton', { name: 'Frame height' })).toHaveValue(20)
+})
+
+test('an unsupported image URL is reported instead of being loaded', async () => {
+  const onSave = vi.fn<(result: SpriteEditorResult) => void>()
+  render(<SpriteEditor image={{ src: 'javascript:alert(1)' }} onSave={onSave} />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load image')
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  expect(screen.getByLabelText('Upload sprite sheet')).toBeDisabled()
+  expect(onSave).not.toHaveBeenCalled()
 })

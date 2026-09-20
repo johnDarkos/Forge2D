@@ -22,7 +22,9 @@ export async function exportFramesZip(
   const entries: Record<string, Uint8Array> = {}
   if (new Set(frames.map((frame) => frame.id)).size !== frames.length)
     throw new Error('Duplicate frame in ZIP export')
-  const sorted = [...frames].sort((a, b) => a.id - b.id)
+  const sorted = [...frames].sort(
+    (a, b) => a.displayNumber - b.displayNumber || a.id.localeCompare(b.id),
+  )
   const names = frameFileNames(sorted)
   for (const [index, frame] of sorted.entries()) {
     entries[names[index]] = await readBytes(await exportFrame(image, frame))

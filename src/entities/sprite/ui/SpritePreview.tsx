@@ -37,8 +37,8 @@ export function SpritePreview({ sheet, frame, region = false }: SpritePreviewPro
             />
           </div>
           <p className="muted">
-            {region ? 'Selected region' : `Frame ${frame.id}`} · {frame.width} × {frame.height} px ·
-            ({frame.x}, {frame.y})
+            {region ? 'Selected region' : `Frame ${frame.displayNumber}`} · {frame.width} ×{' '}
+            {frame.height} px · ({frame.x}, {frame.y})
           </p>
         </>
       ) : (

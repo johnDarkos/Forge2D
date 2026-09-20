@@ -44,13 +44,21 @@ describe('FR-15–16: exact crop and PNG encoding', () => {
   test('rejects null toBlob result instead of downloading an empty file', async () => {
     const exportFrame = await getExportFrame()
     browser.toBlob.mockImplementation((callback) => callback(null))
-    await expect(exportFrame(document.createElement('img'), frame10)).rejects.toThrow(/.+/)
+    await expect(exportFrame(document.createElement('img'), frame10)).rejects.toMatchObject({
+      name: 'SpriteExportError',
+      code: 'encoding-failed',
+      message: 'Unable to encode PNG for export',
+    })
     expect(browser.downloads).toHaveLength(0)
   })
 
   test('rejects unavailable 2D context', async () => {
     const exportFrame = await getExportFrame()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
-    await expect(exportFrame(document.createElement('img'), frame10)).rejects.toThrow(/.+/)
+    await expect(exportFrame(document.createElement('img'), frame10)).rejects.toMatchObject({
+      name: 'SpriteExportError',
+      code: 'context-unavailable',
+      message: 'Unable to export PNG: Canvas is unavailable',
+    })
   })
 })

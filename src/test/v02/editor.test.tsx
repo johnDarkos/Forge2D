@@ -125,7 +125,7 @@ for (const name of ['Offset X', 'Offset Y', 'Gap X', 'Gap Y']) {
     async (value) => {
       const user = await configure()
       await setField(user, name, value)
-      expect(screen.getByRole('alert')).toHaveTextContent(/offset|gap|integer|required/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(`${name} must be a non-negative integer`)
       expect(screen.getByRole('button', { name: 'Select All' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Export ZIP' })).toBeDisabled()
     },
@@ -186,7 +186,7 @@ test('ZIP error shows an alert and never downloads a partial archive', async () 
   click(11, 9)
   browser.toBlob.mockImplementation((callback) => callback(null))
   await user.click(screen.getByRole('button', { name: 'Export ZIP' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(/zip|png|export|encode/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Unable to encode PNG for export')
   expect(browser.downloads).toHaveLength(0)
   expect(screen.getByLabelText('Upload sprite sheet')).toBeEnabled()
 })
@@ -194,7 +194,9 @@ test('ZIP error shows an alert and never downloads a partial archive', async () 
 test('offset leaving no complete frame shows an error and recovers after correction', async () => {
   const user = await configure()
   await setField(user, 'Offset X', '110')
-  expect(screen.getByRole('alert')).toHaveTextContent(/frame|offset|size/i)
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'Frame size is larger than image or available area after offsets',
+  )
   expect(screen.getByRole('button', { name: 'Select All' })).toBeDisabled()
   await setField(user, 'Offset X', '10')
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()

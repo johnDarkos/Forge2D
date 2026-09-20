@@ -13,12 +13,13 @@ afterEach(() => {
 
 test('ZIP preserves every named frame despite duplicate, unsafe, empty and reserved names', async () => {
   const names = ['idle', 'idle', 'IDLE', '../walk\\left.png', '   ', 'CON', 'idle_2', 'бег']
-  const frames = names.map((name, id) => ({
-    id,
+  const frames = names.map((name, index) => ({
+    id: `manual-${index + 1}`,
+    displayNumber: index + 1,
     name,
     row: 0,
     column: 0,
-    x: id * 10,
+    x: index * 10,
     y: 0,
     width: 10,
     height: 20,

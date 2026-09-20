@@ -19,11 +19,11 @@ export function SpriteCanvas({
   const manual = mode === 'manual'
   const selection = useRegionSelection(ref, manual && !disabled, onRegionChange, onDrawingChange)
   const displayedRegion = manual ? (selection.draft ?? region) : null
-  const [keyboardId, setKeyboardId] = useState(0)
+  const [keyboardIndex, setKeyboardIndex] = useState(0)
   const [focused, setFocused] = useState(false)
   const { zoom, x, y } = viewport
   const drag = useRef<{ clientX: number; clientY: number; x: number; y: number } | null>(null)
-  const keyboardFrame = frames[Math.min(keyboardId, Math.max(0, frames.length - 1))]
+  const keyboardFrame = frames[Math.min(keyboardIndex, Math.max(0, frames.length - 1))]
   const columns = frames.length ? frames[frames.length - 1].column + 1 : 0
   useEffect(() => {
     const canvas = ref.current
@@ -140,7 +140,7 @@ export function SpriteCanvas({
                     y < candidate.y + candidate.height,
                 )
                 if (!frame) return
-                setKeyboardId(frame.id)
+                setKeyboardIndex(frames.indexOf(frame))
                 onFrameClick(frame.id)
               }}
               onKeyDown={(event) => {
@@ -160,8 +160,8 @@ export function SpriteCanvas({
                 }
                 if (event.key in deltas) {
                   event.preventDefault()
-                  setKeyboardId(
-                    Math.max(0, Math.min(frames.length - 1, keyboardFrame.id + deltas[event.key])),
+                  setKeyboardIndex(
+                    Math.max(0, Math.min(frames.length - 1, keyboardIndex + deltas[event.key])),
                   )
                 } else if (event.key === ' ' || event.key === 'Enter') {
                   event.preventDefault()

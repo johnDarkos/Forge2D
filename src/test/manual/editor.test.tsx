@@ -3,24 +3,20 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SpriteEditor } from '@/widgets/sprite-editor'
 import { installBrowser } from '../mvp/browser'
+import { installPointerEvents, uninstallPointerEvents } from '../pointer'
 import { blobBytes, readZip } from '../v02/readZip'
 
 let browser: ReturnType<typeof installBrowser>
+let pointers: ReturnType<typeof installPointerEvents>
 beforeEach(() => {
   browser = installBrowser()
-  vi.stubGlobal('PointerEvent', MouseEvent)
-  Object.defineProperties(HTMLCanvasElement.prototype, {
-    setPointerCapture: { configurable: true, value: vi.fn<(id: number) => void>() },
-    releasePointerCapture: { configurable: true, value: vi.fn<(id: number) => void>() },
-    hasPointerCapture: { configurable: true, value: vi.fn<(id: number) => boolean>(() => true) },
-  })
+  pointers = installPointerEvents()
 })
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
-  for (const name of ['setPointerCapture', 'releasePointerCapture', 'hasPointerCapture'])
-    Reflect.deleteProperty(HTMLCanvasElement.prototype, name)
+  uninstallPointerEvents()
 })
 async function open() {
   render(<SpriteEditor />)
@@ -81,6 +77,29 @@ test('single click cannot create a crop; drawing disables export', async () => {
   expect(screen.getByRole('button', { name: 'Download PNG' })).toBeEnabled()
 })
 
+test('a second pointer, the right button and starts outside the image never hijack the gesture', async () => {
+  const { canvas } = await open()
+  fireEvent.pointerDown(canvas, { clientX: 230, clientY: 58, button: 0, pointerId: 1 })
+  fireEvent.pointerUp(canvas, { clientX: 230, clientY: 58, button: 0, pointerId: 1 })
+  expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
+  fireEvent.pointerDown(canvas, { clientX: 112, clientY: 58, button: 2, pointerId: 1 })
+  fireEvent.pointerMove(canvas, { clientX: 160, clientY: 90, pointerId: 1 })
+  fireEvent.pointerUp(canvas, { clientX: 160, clientY: 90, button: 2, pointerId: 1 })
+  expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
+  // Жест принадлежит первому указателю: второй не меняет рамку и не завершает её.
+  fireEvent.pointerDown(canvas, { clientX: 112, clientY: 58, button: 0, pointerId: 1 })
+  fireEvent.pointerMove(canvas, { clientX: 160, clientY: 90, pointerId: 1 })
+  expect(pointers.capturedPointers(canvas)).toEqual([1])
+  fireEvent.pointerDown(canvas, { clientX: 200, clientY: 100, button: 0, pointerId: 2 })
+  fireEvent.pointerMove(canvas, { clientX: 220, clientY: 110, pointerId: 2 })
+  fireEvent.pointerUp(canvas, { clientX: 220, clientY: 110, button: 0, pointerId: 2 })
+  expect(screen.getByRole('button', { name: 'Download PNG' })).toBeDisabled()
+  fireEvent.pointerUp(canvas, { clientX: 160, clientY: 90, button: 0, pointerId: 1 })
+  const preview = screen.getByLabelText('Frame preview') as HTMLCanvasElement
+  expect([preview.width, preview.height]).toEqual([96, 64])
+  expect(pointers.capturedPointers(canvas)).toEqual([])
+})
+
 test('Escape and pointer cancellation keep the previous crop', async () => {
   const { canvas } = await open()
   drag(canvas)
@@ -128,7 +147,7 @@ test('manual PNG encoding failure is visible and keeps the crop for retry', asyn
   drag(canvas)
   browser.toBlob.mockImplementation((callback) => callback(null))
   await user.click(screen.getByRole('button', { name: 'Download PNG' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(/png|export|encode/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Unable to encode PNG for export')
   expect(browser.downloads).toHaveLength(0)
   expect(screen.getByRole('button', { name: 'Download PNG' })).toBeEnabled()
 })
@@ -241,7 +260,7 @@ test('failed saved-frame ZIP preserves the list for retry and removing the last 
     .mockImplementationOnce((callback) => callback(browser.png))
     .mockImplementationOnce((callback) => callback(null))
   await user.click(screen.getByRole('button', { name: 'Export ZIP' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(/png|export|encode/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Unable to encode PNG for export')
   expect(browser.downloads).toHaveLength(0)
   expect(screen.getByText('Saved frames: 2')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Export ZIP' }))

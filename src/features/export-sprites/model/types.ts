@@ -1,4 +1,9 @@
-import type { LoadedSpriteSheet, NamedSpriteFrame, SpriteFrameGeometry } from '@/entities/sprite'
+import type {
+  LoadedSpriteSheet,
+  NamedSpriteFrame,
+  SpriteFrameGeometry,
+  SpriteRect,
+} from '@/entities/sprite'
 
 /** Именованные ручные вырезки и обычные кадры сетки используют один экспортёр. */
 export interface ExportFrameItem extends SpriteFrameGeometry {
@@ -18,6 +23,7 @@ export type ExportState =
 
 export interface ExportButtonProps {
   readonly savedFrames?: readonly NamedSpriteFrame[]
+  readonly region?: SpriteRect | null
   readonly regionExport?: boolean
   readonly sheet: LoadedSpriteSheet | null
   readonly frames: readonly SpriteFrameGeometry[]
@@ -26,4 +32,4 @@ export interface ExportButtonProps {
 }
 
 /** Нарезка одного кадра без скачивания; ошибка отклоняет Promise. */
-export type ExportFrame = (image: HTMLImageElement, frame: SpriteFrameGeometry) => Promise<Blob>
+export type ExportFrame = (image: HTMLImageElement, frame: SpriteRect) => Promise<Blob>

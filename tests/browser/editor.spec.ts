@@ -73,7 +73,7 @@ for (const example of [
     columns: 8,
     rows: 4,
     count: 32,
-    id: 10,
+    displayNumber: 11,
     x: 64,
     y: 32,
   },
@@ -87,7 +87,7 @@ for (const example of [
     columns: 55,
     rows: 27,
     count: 1485,
-    id: 117,
+    displayNumber: 118,
     x: 224,
     y: 64,
   },
@@ -124,7 +124,7 @@ for (const example of [
     await page.getByRole('button', { name: 'Export selected' }).click()
     const download = await downloadPromise
     expect(download.suggestedFilename()).toBe(
-      `frame_${String(example.id + 1).padStart(3, '0')}.png`,
+      `frame_${String(example.displayNumber).padStart(3, '0')}.png`,
     )
     const path = await download.path()
     if (!path) throw new Error('PNG download was not saved')

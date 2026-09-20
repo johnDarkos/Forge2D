@@ -57,8 +57,8 @@ Features не импортируют друг друга. Widget связыва�
 - `selectedIds` и `activeFrameId`: выбор ячеек и кадр для Preview в режиме сетки.
 - `manualRegion`: завершённая ручная область или `null`.
 - `sprites`: единая коллекция публичных `SpriteFrame` — строковый ID, имя и rect.
-- `spriteNumbers`: соответствие строковых ID внутренним номерам карточек/экспорта.
-- `nextManualFrameId`: следующий номер ручной вырезки; удаление не уменьшает его.
+- `displayNumbers`: соответствие строковых ID номерам карточек и friendly filename.
+- `nextDisplayNumber`: следующий номер карточки; удаление не уменьшает его.
 - `viewport`: `{ zoom, x, y }` — масштаб и сдвиг отображения.
 - `isDrawing`: выполняется ли ручной жест.
 - `isExporting`: сигнал от экспортёра для блокировки изменений сессии.
@@ -77,13 +77,13 @@ source.ready → sheet
 sheet + frameSizeInput + gridOptionsInput → validateGrid
 валидная сетка → generateFrames → geometry
 geometry + selectedIds → frames с флагом selected → selectedFrames
-sprites + spriteNumbers → savedFrames для карточек и PNG/ZIP
-manualRegion → regionFrame с геометрией для Preview и exportFrame
+sprites + displayNumbers → savedFrames для карточек и PNG/ZIP
+manualRegion → SpriteRect для Preview и exportFrame без ID
 режим + выбор → preview.frame и exportButton.frames
 ```
 
-В ручном режиме `regionFrame` получает служебные `id/row/column = 0` для общего
-контракта нарезки. При Add frame создаётся другой объект со стабильным ID списка.
+В ручном режиме текущая область остаётся обычным `SpriteRect` без ID. ID создаётся
+только при Add frame, когда область становится элементом коллекции.
 Количество кадров и подписи состояния также вычисляются из текущих данных.
 
 ### Локальное состояние компонентов
@@ -180,7 +180,8 @@ imageY = (clientY - rect.top)  × imageHeight / rect.height
 ```text
 columns = max(0, floor((imageWidth  - offsetX + gapX) / (frameWidth  + gapX)))
 rows    = max(0, floor((imageHeight - offsetY + gapY) / (frameHeight + gapY)))
-id = row × columns + column
+id = "grid-{x}-{y}-{frameWidth}-{frameHeight}"
+displayNumber = row × columns + column + 1
 x  = offsetX + column × (frameWidth + gapX)
 y  = offsetY + row    × (frameHeight + gapY)
 ```
@@ -231,7 +232,7 @@ Escape, pointer cancellation и потеря захвата удаляют че�
 ```text
 Add frame в сайдбаре → manualFrames.onAdd
   → manualFrameToSprite: rect + уникальный строковый ID + имя frame_NNN
-  → sprites + spriteNumbers, следующий UI-номер, manualRegion = null
+  → sprites + displayNumbers, следующий UI-номер, manualRegion = null
   → ManualFrames под холстом → SpriteThumbnail из исходного Image
 
 Поле имени → onRename(id, name) → renameSprite → новый объект в sprites
@@ -265,7 +266,7 @@ Remove     → onRemove(id)       → removeSprite → коллекция без
 не требуется. Для сетки дополнительно нужна валидная геометрия.
 
 ```text
-ExportButton → снимок выбранного списка, сортировка по ID
+ExportButton → снимок выбранного списка, сортировка по displayNumber
   → running = true, onExportingChange(true)
   → exportFrame(Image, frame)
       → временный Canvas размером width × height
@@ -283,7 +284,8 @@ ExportButton → снимок выбранного списка, сортиро�
 `frameFileNames` формирует плоские имена PNG: заменяет недопустимые символы,
 подставляет номер при пустом имени, обрабатывает зарезервированные имена.
 Совпадения без учёта регистра получают суффиксы: `idle.png`, `idle_2.png`.
-Текст в полях не переписывается. ID сетки 10 соответствует `frame_011.png`.
+Текст в полях не переписывается. Номер сетки 11 соответствует `frame_011.png`;
+строковый ID остаётся внутренней идентичностью кадра.
 
 Во время экспорта UI блокирует загрузку, смену режима, поля сетки, изменение
 выбора, добавление, переименование и удаление кадров. Снимок экспорта не зависит

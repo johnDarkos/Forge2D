@@ -13,14 +13,14 @@
 
 ## Размещение типов
 
-| Модуль                                      | Типы                                                                                    |
-| ------------------------------------------- | --------------------------------------------------------------------------------------- |
-| entities/sprite/model/types.ts              | GridFrame, внутренняя геометрия и числовые ID, метаданные файла, размеры и ошибки сетки |
-| features/upload-sprite-sheet/model/types.ts | SpriteUploaderProps, UploadStatus, UploadError                                          |
-| features/configure-grid/model/types.ts      | GridSettingsProps                                                                       |
-| features/select-sprite/model/types.ts       | SpriteCanvasProps                                                                       |
-| features/export-sprites/model/types.ts      | ExportButtonProps, ExportState, ExportError, ExportFrame                                |
-| widgets/sprite-editor/model/types.ts        | ImageLoadState, EditorState, SpriteEditorProps, SpriteEditorViewProps                   |
+| Модуль                                      | Типы                                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| entities/sprite/model/types.ts              | GridFrame, геометрия, строковые ID и displayNumber, метаданные, размеры и ошибки сетки |
+| features/upload-sprite-sheet/model/types.ts | SpriteUploaderProps, UploadStatus, UploadError                                         |
+| features/configure-grid/model/types.ts      | GridSettingsProps                                                                      |
+| features/select-sprite/model/types.ts       | SpriteCanvasProps                                                                      |
+| features/export-sprites/model/types.ts      | ExportButtonProps, ExportState, ExportError, ExportFrame                               |
+| widgets/sprite-editor/model/types.ts        | ImageLoadState, EditorState, SpriteEditorProps, SpriteEditorViewProps                  |
 
 `entities/sprite/model/editor-types.ts` содержит публичные типы FEAT-001;
 `model/browser-types.ts` — LoadedSpriteSheet и SpritePreviewProps.
@@ -35,7 +35,7 @@ App и EditorPage не принимают данные, поэтому пуст�
 - FrameSizeInput содержит строки: пустой ввод не превращается в ноль.
 - FrameSize содержит числа; целочисленность и положительность требуют runtime-валидации.
 - ImageLoadState — объединение idle/loading/ready/error с разными обязательными данными.
-- EditorState хранит выбранные ID в ReadonlySet; готовые кадры и счётчики вычисляются из состояния.
+- EditorState хранит строковые выбранные ID в ReadonlySet; готовые кадры и номера вычисляются из состояния.
 - Массивы входных кадров readonly: дочерние компоненты не меняют коллекции владельца.
 - GridFrame.selected сохранён для совместимости с ТЗ и проверкой независимости кадров; в сессии он должен вычисляться из выбранных ID.
 - ExportState принадлежит feature; isExporting в редактор передаётся через onExportingChange для блокировки смены источника.
@@ -83,19 +83,25 @@ Feature select-sprite экспортирует `SelectionMode = 'grid' | 'manual
 внутри feature. `EditorState` хранит `selectionMode`, `manualRegion`, `isDrawing`.
 Необязательные `SpritePreviewProps.region` и `ExportButtonProps.regionExport`
 меняют подписи и имя скачивания; по умолчанию сохраняется режим сетки.
+`ExportButtonProps.region` передаёт текущий `SpriteRect` без искусственного ID.
 
 ## Типы списка кадров
 
 `NamedSpriteFrame extends SpriteFrameGeometry` добавляет readonly `name` и
 экспортируется через domain и entity API. `EditorState.sprites` — readonly
-массив публичных кадров; `savedFrames` вычисляется как адаптер для существующего UI; `nextManualFrameId` обеспечивает стабильные ID после удаления.
+массив публичных кадров. `savedFrames` добавляет к ним геометрию и `displayNumber`.
+`displayNumbers` сопоставляет строковый ID с номером карточки, а
+`nextDisplayNumber` не переиспользует номера после удаления.
 `ManualFramesProps` передаёт список, источник, разрешение добавления, блокировку
-и callbacks `onAdd`, `onRename`, `onRemove`. `SpriteEditorViewProps.manualFrames`
+и callbacks `onAdd`, `onRename`, `onRemove`; rename/remove принимают строковый ID.
+`SpriteEditorViewProps.manualFrames`
 связывает новую feature с моделью сессии.
 
 `ExportButtonProps.savedFrames` необязателен для совместимости с экспортом сетки.
 `ExportFrameItem` внутри feature экспорта расширяет геометрию необязательным
 именем: одна функция `exportFramesZip` принимает обычные и именованные кадры.
+`ExportFrameItem.id` — строковый ID выбора, `displayNumber` определяет порядок и
+fallback-имя файла. `exportFrame` принимает только прямоугольник и не требует ID.
 Контракт `SpriteEditorResult` обновлён отдельным этапом FEAT-001, описан ниже.
 
 ## Панель инструментов и вид холста

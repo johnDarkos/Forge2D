@@ -22,7 +22,7 @@ async function open() {
   return { ...view, user }
 }
 function uploadInput() {
-  return screen.getByLabelText(/upload (image|sprite sheet)/i) as HTMLInputElement
+  return screen.getByLabelText('Upload sprite sheet') as HTMLInputElement
 }
 function sheetCanvas() {
   return screen.getByLabelText('Sprite sheet') as HTMLCanvasElement
@@ -31,9 +31,7 @@ function previewCanvas() {
   return screen.getByLabelText('Frame preview') as HTMLCanvasElement
 }
 function selected(count: number) {
-  expect(
-    screen.getByText(new RegExp(`Selected(?: frames)?:\\s*${count}$`, 'i')),
-  ).toBeInTheDocument()
+  expect(screen.getByText(`Selected frames: ${count}`)).toBeInTheDocument()
 }
 async function settings(user: ReturnType<typeof userEvent.setup>, width = '32', height = '32') {
   const w = screen.getByRole('spinbutton', { name: /frame width/i })
@@ -47,7 +45,7 @@ async function settings(user: ReturnType<typeof userEvent.setup>, width = '32', 
 async function loaded(sheet = player) {
   const view = await open()
   await view.user.upload(uploadInput(), browser.file(sheet))
-  await screen.findByText(new RegExp(sheet.name.replace('.', '\\.')))
+  await screen.findByText(sheet.name)
   await settings(view.user)
   return view
 }
@@ -73,7 +71,7 @@ describe('MVP user acceptance: FR-01–18', () => {
     expect(screen.getByRole('heading', { name: 'Sprite Cutter' })).toBeInTheDocument()
     expect(screen.getByText(/no image loaded/i)).toBeInTheDocument()
     expect(uploadInput().type).toBe('file')
-    expect(uploadInput().accept).toMatch(/image\//)
+    expect(uploadInput().accept).toBe('image/png,image/jpeg,image/webp')
     expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
   })
 
@@ -83,8 +81,8 @@ describe('MVP user acceptance: FR-01–18', () => {
       const view = await open()
       const file = browser.file({ ...player, type })
       await view.user.upload(uploadInput(), file)
-      await screen.findByText(/player\.png/)
-      expect(screen.getByText(/256\s*[×x]\s*128/)).toBeInTheDocument()
+      await screen.findByText('player.png')
+      expect(screen.getByText('256 × 128 px')).toBeInTheDocument()
       expect(browser.createObjectURL).toHaveBeenCalledWith(file)
       const canvas = sheetCanvas()
       expect([canvas.width, canvas.height]).toEqual([256, 128])
@@ -100,7 +98,9 @@ describe('MVP user acceptance: FR-01–18', () => {
     fireEvent.change(uploadInput(), {
       target: { files: [new File(['text'], 'notes.txt', { type: 'text/plain' })] },
     })
-    expect(await screen.findByRole('alert')).toHaveTextContent(/unsupported|png|jpeg|webp|image/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unsupported image. Choose PNG, JPEG or WebP.',
+    )
     expect(browser.createObjectURL).not.toHaveBeenCalled()
   })
 
@@ -114,26 +114,21 @@ describe('MVP user acceptance: FR-01–18', () => {
   test('decode failure shows a friendly error and releases object URL', async () => {
     const { user } = await open()
     await user.upload(uploadInput(), browser.file(player, true))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/unable to load image/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load image')
     expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
     await waitFor(() => expect(browser.urls.size).toBe(0))
   })
 
   test('32×32 settings show 8 columns, 4 rows, 32 frames and grid lines', async () => {
     await loaded()
-    expect(screen.getByText(/columns:\s*8/i)).toBeInTheDocument()
-    expect(screen.getByText(/rows:\s*4/i)).toBeInTheDocument()
-    expect(screen.getByText(/^(?:total )?frames:\s*32$/i)).toBeInTheDocument()
-    const context = browser.context(sheetCanvas())
-    // Both line-based and per-cell rectangle-based rendering satisfy the contract.
-    const segments = context.lineTo.mock.calls
-    const rectangles = [...context.strokeRect.mock.calls, ...context.rect.mock.calls]
-    expect(
-      segments.some(([x]) => x === 32) || rectangles.some(([x, , w]) => x === 32 && w === 32),
-    ).toBe(true)
-    expect(
-      segments.some(([, y]) => y === 32) || rectangles.some(([, y, , h]) => y === 32 && h === 32),
-    ).toBe(true)
+    expect(screen.getByText('Columns: 8')).toBeInTheDocument()
+    expect(screen.getByText('Rows: 4')).toBeInTheDocument()
+    expect(screen.getByText('Frames: 32')).toBeInTheDocument()
+    // Границы ячеек рисуются прямоугольниками кадров поверх исходника.
+    const rectangles = browser.context(sheetCanvas()).strokeRect.mock.calls
+    expect(rectangles).toContainEqual([0, 0, 32, 32])
+    expect(rectangles).toContainEqual([32, 0, 32, 32])
+    expect(rectangles).toContainEqual([0, 32, 32, 32])
   })
 
   test('click column 2, row 1 highlights and previews source rectangle (64,32,32,32)', async () => {
@@ -229,7 +224,9 @@ describe('MVP user acceptance: FR-01–18', () => {
       const { user } = await loaded()
       clickAt(1, 1)
       await settings(user, width)
-      expect(screen.getByRole('alert')).toHaveTextContent(/frame|size|width/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Frame width must be a positive integer greater than 0',
+      )
       expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
     },
   )
@@ -239,7 +236,9 @@ describe('MVP user acceptance: FR-01–18', () => {
     async (height) => {
       const { user } = await loaded()
       await settings(user, '32', height)
-      expect(screen.getByRole('alert')).toHaveTextContent(/frame|size|height/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Frame height must be a positive integer greater than 0',
+      )
       expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
     },
   )
@@ -247,7 +246,9 @@ describe('MVP user acceptance: FR-01–18', () => {
   test('frame larger than image shows error and recovers after correction', async () => {
     const { user } = await loaded()
     await settings(user, '512')
-    expect(screen.getByRole('alert')).toHaveTextContent(/larger|size/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Frame size is larger than image or available area after offsets',
+    )
     await settings(user)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     clickAt(1, 1)
@@ -260,8 +261,7 @@ describe('MVP user acceptance: FR-01–18', () => {
     await settings(user, '64', '64')
     selected(0)
     expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
-    const preview = screen.queryByLabelText('Frame preview') as HTMLCanvasElement | null
-    expect(preview === null || browser.context(preview).clearRect.mock.calls.length > 0).toBe(true)
+    expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
   })
 
   test('exports only selected frames as separate named PNG blobs and releases URLs', async () => {
@@ -280,14 +280,14 @@ describe('MVP user acceptance: FR-01–18', () => {
     const crops = [...browser.contexts.values()].flatMap((context) => context.drawImage.mock.calls)
     expect(crops).toContainEqual([expect.any(HTMLImageElement), 0, 0, 32, 32, 0, 0, 32, 32])
     expect(crops).toContainEqual([expect.any(HTMLImageElement), 64, 32, 32, 32, 0, 0, 32, 32])
-    const exportedUrls = browser.createObjectURL.mock.results.filter(
-      (_, index) => !(browser.createObjectURL.mock.calls[index][0] instanceof File),
-    )
-    await waitFor(() => {
-      expect(exportedUrls).toHaveLength(2)
-      for (const result of exportedUrls)
-        expect(browser.revokeObjectURL).toHaveBeenCalledWith(result.value)
-    })
+    // Список пересчитывается на каждой попытке: снимок до waitFor второго URL не дождался бы.
+    const exportedUrls = () =>
+      browser.createObjectURL.mock.results.filter(
+        (_, index) => !(browser.createObjectURL.mock.calls[index][0] instanceof File),
+      )
+    await waitFor(() => expect(exportedUrls()).toHaveLength(2))
+    for (const result of exportedUrls())
+      expect(browser.revokeObjectURL).toHaveBeenCalledWith(result.value)
     expect(browser.fetch).not.toHaveBeenCalled()
     expect(browser.xhr).not.toHaveBeenCalled()
   })
@@ -297,7 +297,7 @@ describe('MVP user acceptance: FR-01–18', () => {
     clickAt(1, 1)
     browser.toBlob.mockImplementation((callback) => callback(null))
     await user.click(screen.getByRole('button', { name: /export selected/i }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/export|png|encode|save/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to encode PNG for export')
     expect(browser.downloads).toHaveLength(0)
   })
 
@@ -306,14 +306,13 @@ describe('MVP user acceptance: FR-01–18', () => {
     clickAt(70, 40)
     const oldUrl = browser.createObjectURL.mock.results[0].value
     await user.upload(uploadInput(), browser.file(replacement))
-    await screen.findByText(/enemy\.png/)
-    expect(screen.queryByText(/player\.png/)).not.toBeInTheDocument()
-    expect(screen.getByText(/64\s*[×x]\s*32/)).toBeInTheDocument()
+    await screen.findByText('enemy.png')
+    expect(screen.queryByText('player.png')).not.toBeInTheDocument()
+    expect(screen.getByText('64 × 32 px')).toBeInTheDocument()
     selected(0)
-    expect(screen.getByText(/^(?:total )?frames:\s*2$/i)).toBeInTheDocument()
+    expect(screen.getByText('Frames: 2')).toBeInTheDocument()
     expect(browser.revokeObjectURL).toHaveBeenCalledWith(oldUrl)
-    const preview = screen.queryByLabelText('Frame preview') as HTMLCanvasElement | null
-    expect(preview === null || browser.context(preview).clearRect.mock.calls.length > 0).toBe(true)
+    expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
     unmount()
     await waitFor(() => expect(browser.urls.size).toBe(0))
   })
@@ -326,10 +325,10 @@ test('late image load cannot overwrite a newer upload', async () => {
   await user.upload(uploadInput(), browser.file(replacement))
   expect(browser.pendingImages).toHaveLength(2)
   act(() => browser.pendingImages[1]())
-  await screen.findByText(/enemy\.png/)
+  await screen.findByText('enemy.png')
   act(() => browser.pendingImages[0]())
-  expect(screen.queryByText(/player\.png/)).not.toBeInTheDocument()
-  expect(screen.getByText(/64\s*[×x]\s*32/)).toBeInTheDocument()
+  expect(screen.queryByText('player.png')).not.toBeInTheDocument()
+  expect(screen.getByText('64 × 32 px')).toBeInTheDocument()
   expect(browser.urls.size).toBe(1)
 })
 
@@ -370,4 +369,43 @@ test('export locks input and selection until PNG encoding completes', async () =
   })
   await waitFor(() => expect(uploadInput()).toBeEnabled())
   expect(browser.downloads).toHaveLength(1)
+})
+
+test('arrow keys move the keyboard frame across rows, clamp at the edge and Enter/Space toggle it', async () => {
+  await loaded()
+  const canvas = sheetCanvas()
+  canvas.focus()
+  expect(document.activeElement).toBe(canvas)
+  fireEvent.keyDown(canvas, { key: 'ArrowUp' }) // Верхний ряд: движение вверх не уходит за сетку.
+  fireEvent.keyDown(canvas, { key: 'Enter' })
+  selected(1)
+  expect(browser.context(previewCanvas()).drawImage).toHaveBeenLastCalledWith(
+    expect.any(HTMLImageElement),
+    0,
+    0,
+    32,
+    32,
+    0,
+    0,
+    32,
+    32,
+  )
+  fireEvent.keyDown(canvas, { key: 'ArrowRight' })
+  fireEvent.keyDown(canvas, { key: 'ArrowDown' }) // Восемь колонок: следующий ряд, та же колонка.
+  fireEvent.keyDown(canvas, { key: ' ' })
+  selected(2)
+  expect(browser.context(previewCanvas()).drawImage).toHaveBeenLastCalledWith(
+    expect.any(HTMLImageElement),
+    32,
+    32,
+    32,
+    32,
+    0,
+    0,
+    32,
+    32,
+  )
+  fireEvent.keyDown(canvas, { key: ' ' })
+  selected(1)
+  expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
 })

@@ -26,12 +26,12 @@ const sameRect = (a: SpriteFrame['rect'], b: SpriteFrame['rect']) =>
 
 /** Номера карточек относятся к UI; строковые domain ID не зависят от порядка и имени. */
 function storeSprites(state: EditorState, sprites: readonly SpriteFrame[]): EditorState {
-  const spriteNumbers = new Map(state.spriteNumbers)
-  let nextManualFrameId = state.nextManualFrameId
+  const displayNumbers = new Map(state.displayNumbers)
+  let nextDisplayNumber = state.nextDisplayNumber
   for (const sprite of sprites) {
-    if (!spriteNumbers.has(sprite.id)) spriteNumbers.set(sprite.id, nextManualFrameId++)
+    if (!displayNumbers.has(sprite.id)) displayNumbers.set(sprite.id, nextDisplayNumber++)
   }
-  return { ...state, sprites, spriteNumbers, nextManualFrameId }
+  return { ...state, sprites, displayNumbers, nextDisplayNumber }
 }
 function mergeSprites(saved: readonly SpriteFrame[], added: readonly SpriteFrame[]): SpriteFrame[] {
   const ids = new Set(saved.map((sprite) => sprite.id))
@@ -50,8 +50,8 @@ function initialState({
       manualRegion: null,
       isDrawing: false,
       sprites: [],
-      spriteNumbers: new Map(),
-      nextManualFrameId: 0,
+      displayNumbers: new Map(),
+      nextDisplayNumber: 1,
       source: image ? { status: 'loading', file: null, requestId: 0 } : { status: 'idle' },
       frameSizeInput: grid
         ? { width: String(grid.cellWidth), height: String(grid.cellHeight) }
@@ -257,18 +257,14 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
   )
   const selectedFrames = frames.filter((frame) => frame.selected)
   const isManual = state.selectionMode === 'manual'
-  const regionFrame = state.manualRegion
-    ? { ...state.manualRegion, id: 0, row: 0, column: 0 }
-    : null
   const savedFrames: NamedSpriteFrame[] = state.sprites.map((sprite) => ({
-    id: state.spriteNumbers.get(sprite.id)!,
+    id: sprite.id,
+    displayNumber: state.displayNumbers.get(sprite.id)!,
     name: sprite.name,
     ...sprite.rect,
     row: 0,
     column: 0,
   }))
-  const domainId = (number: number) =>
-    state.sprites.find((sprite) => state.spriteNumbers.get(sprite.id) === number)?.id
   const normalizeGrid = (frame: SpriteFrameGeometry, saved: readonly SpriteFrame[]) => {
     const existing = saved.find((sprite) => sameRect(sprite.rect, frame))
     if (existing) return existing
@@ -375,14 +371,14 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
           state.isDrawing
         )
           return
-        let id = `sprite-${state.nextManualFrameId + 1}`
+        let id = `sprite-${state.nextDisplayNumber}`
         let suffix = 2
-        while (usedIds.current.has(id)) id = `sprite-${state.nextManualFrameId + 1}-${suffix++}`
+        while (usedIds.current.has(id)) id = `sprite-${state.nextDisplayNumber}-${suffix++}`
         usedIds.current.add(id)
         const sprite = manualFrameToSprite(
           state.manualRegion,
           id,
-          `frame_${String(state.nextManualFrameId + 1).padStart(3, '0')}`,
+          `frame_${String(state.nextDisplayNumber).padStart(3, '0')}`,
         )
         setState((previous) =>
           previous.manualRegion
@@ -390,17 +386,15 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
             : previous,
         )
       },
-      onRename: (number, name) => {
-        const id = domainId(number)
-        if (id && !busy)
+      onRename: (id, name) => {
+        if (!busy)
           setState((previous) => ({
             ...previous,
             sprites: renameSprite(previous.sprites, id, name),
           }))
       },
-      onRemove: (number) => {
-        const id = domainId(number)
-        if (!id || busy) return
+      onRemove: (id) => {
+        if (busy) return
         setState((previous) => {
           const removed = previous.sprites.find((sprite) => sprite.id === id)
           const selectedIds = new Set(previous.selectedIds)
@@ -436,8 +430,8 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
           source: { status: 'loading', file, requestId: id },
           manualRegion: null,
           sprites: [],
-          spriteNumbers: new Map(),
-          nextManualFrameId: 0,
+          displayNumbers: new Map(),
+          nextDisplayNumber: 1,
           isDrawing: false,
           selectedIds: new Set(),
           activeFrameId: null,
@@ -521,13 +515,14 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
       sheet,
       region: isManual,
       frame: isManual
-        ? regionFrame
+        ? state.manualRegion
         : (selectedFrames.find((frame) => frame.id === state.activeFrameId) ?? null),
     },
     exportButton: {
       sheet,
-      frames: isManual ? (regionFrame ? [regionFrame] : []) : selectedFrames,
+      frames: isManual ? [] : selectedFrames,
       savedFrames,
+      region: isManual ? state.manualRegion : null,
       regionExport: isManual,
       disabled: !sheet || (!isManual && grid?.status !== 'valid') || state.isDrawing || saving,
       onExportingChange: (isExporting) => setState((previous) => ({ ...previous, isExporting })),

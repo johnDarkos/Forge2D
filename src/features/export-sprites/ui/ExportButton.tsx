@@ -9,6 +9,7 @@ export function ExportButton({
   sheet,
   frames,
   savedFrames = [],
+  region = null,
   disabled,
   regionExport = false,
   onExportingChange,
@@ -23,12 +24,41 @@ export function ExportButton({
     }
   }, [])
   const exportSelected = async (format: 'png' | 'zip') => {
-    const selection = format === 'zip' && regionExport ? savedFrames : frames
+    if (regionExport && format === 'png') {
+      if (!sheet || !region || disabled || running.current) return
+      running.current = true
+      setState({ status: 'exporting' })
+      onExportingChange(true)
+      try {
+        const blob = await exportFrame(sheet.image, region)
+        if (mounted.current) await downloadBlob(blob, 'selection.png')
+        if (mounted.current) setState({ status: 'idle' })
+      } catch (error) {
+        if (mounted.current)
+          setState({
+            status: 'error',
+            error: {
+              code: error instanceof SpriteExportError ? error.code : 'download-failed',
+              message:
+                error instanceof SpriteExportError
+                  ? error.message
+                  : 'Unable to export PNG. Please try again.',
+            },
+          })
+      } finally {
+        running.current = false
+        if (mounted.current) onExportingChange(false)
+      }
+      return
+    }
+    const selection = regionExport ? savedFrames : frames
     if (!sheet || !selection.length || disabled || running.current) return
     running.current = true
     setState({ status: 'exporting' })
     onExportingChange(true)
-    const snapshot = [...selection].sort((a, b) => a.id - b.id)
+    const snapshot = [...selection].sort(
+      (a, b) => a.displayNumber - b.displayNumber || a.id.localeCompare(b.id),
+    )
     try {
       if (format === 'zip') {
         const blob = await exportFramesZip(sheet.image, snapshot)
@@ -41,10 +71,7 @@ export function ExportButton({
         for (const frame of snapshot) {
           const blob = await exportFrame(sheet.image, frame)
           if (!mounted.current) break
-          await downloadBlob(
-            blob,
-            regionExport ? 'selection.png' : `frame_${String(frame.id + 1).padStart(3, '0')}.png`,
-          )
+          await downloadBlob(blob, `frame_${String(frame.displayNumber).padStart(3, '0')}.png`)
         }
       }
       if (mounted.current) setState({ status: 'idle' })
@@ -69,7 +96,12 @@ export function ExportButton({
     <div className="export-action">
       <button
         type="button"
-        disabled={disabled || !sheet || !frames.length || state.status === 'exporting'}
+        disabled={
+          disabled ||
+          !sheet ||
+          !(regionExport ? region : frames.length) ||
+          state.status === 'exporting'
+        }
         onClick={() => {
           void exportSelected('png')
         }}

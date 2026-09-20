@@ -30,15 +30,18 @@ export const generateFrames: GenerateFrames = (
     frameHeight,
     options,
   )
-  return Array.from({ length: frameCount }, (_, id) => {
-    const column = id % columns
-    const row = Math.floor(id / columns)
+  return Array.from({ length: frameCount }, (_, index) => {
+    const column = index % columns
+    const row = Math.floor(index / columns)
+    const x = options.offsetX + column * (frameWidth + options.gapX)
+    const y = options.offsetY + row * (frameHeight + options.gapY)
     return {
-      id,
+      id: `grid-${x}-${y}-${frameWidth}-${frameHeight}`,
+      displayNumber: index + 1,
       row,
       column,
-      x: options.offsetX + column * (frameWidth + options.gapX),
-      y: options.offsetY + row * (frameHeight + options.gapY),
+      x,
+      y,
       width: frameWidth,
       height: frameHeight,
       selected: false,

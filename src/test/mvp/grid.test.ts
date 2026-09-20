@@ -8,7 +8,8 @@ describe('FR-06–09: grid and frame coordinates', () => {
     const frames = generate(256, 128, 32, 32)
     expect(frames).toHaveLength(32)
     expect(frames[0]).toEqual({
-      id: 0,
+      id: 'grid-0-0-32-32',
+      displayNumber: 1,
       row: 0,
       column: 0,
       x: 0,
@@ -28,7 +29,8 @@ describe('FR-06–09: grid and frame coordinates', () => {
     const frames = generate(100, 100, 32, 32)
     expect(frames).toHaveLength(9)
     expect(frames[8]).toEqual({
-      id: 8,
+      id: 'grid-64-64-32-32',
+      displayNumber: 9,
       row: 2,
       column: 2,
       x: 64,
@@ -42,12 +44,72 @@ describe('FR-06–09: grid and frame coordinates', () => {
   test('non-square frames do not swap width and height', async () => {
     const generate = await getGenerateFrames()
     expect(generate(96, 40, 32, 20)).toEqual([
-      { id: 0, row: 0, column: 0, x: 0, y: 0, width: 32, height: 20, selected: false },
-      { id: 1, row: 0, column: 1, x: 32, y: 0, width: 32, height: 20, selected: false },
-      { id: 2, row: 0, column: 2, x: 64, y: 0, width: 32, height: 20, selected: false },
-      { id: 3, row: 1, column: 0, x: 0, y: 20, width: 32, height: 20, selected: false },
-      { id: 4, row: 1, column: 1, x: 32, y: 20, width: 32, height: 20, selected: false },
-      { id: 5, row: 1, column: 2, x: 64, y: 20, width: 32, height: 20, selected: false },
+      {
+        id: 'grid-0-0-32-20',
+        displayNumber: 1,
+        row: 0,
+        column: 0,
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
+      {
+        id: 'grid-32-0-32-20',
+        displayNumber: 2,
+        row: 0,
+        column: 1,
+        x: 32,
+        y: 0,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
+      {
+        id: 'grid-64-0-32-20',
+        displayNumber: 3,
+        row: 0,
+        column: 2,
+        x: 64,
+        y: 0,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
+      {
+        id: 'grid-0-20-32-20',
+        displayNumber: 4,
+        row: 1,
+        column: 0,
+        x: 0,
+        y: 20,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
+      {
+        id: 'grid-32-20-32-20',
+        displayNumber: 5,
+        row: 1,
+        column: 1,
+        x: 32,
+        y: 20,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
+      {
+        id: 'grid-64-20-32-20',
+        displayNumber: 6,
+        row: 1,
+        column: 2,
+        x: 64,
+        y: 20,
+        width: 32,
+        height: 20,
+        selected: false,
+      },
     ])
   })
 
@@ -63,8 +125,11 @@ describe('FR-06–09: grid and frame coordinates', () => {
 
   test.each([0, -32, 1.5, NaN, Infinity])('rejects invalid frame dimension %s', async (value) => {
     const generate = await getGenerateFrames()
-    expect(() => generate(256, 128, value, 32)).toThrow(/.+/)
-    expect(() => generate(256, 128, 32, value)).toThrow(/.+/)
+    const message = 'Image and frame dimensions must be positive integers'
+    for (const run of [() => generate(256, 128, value, 32), () => generate(256, 128, 32, value)]) {
+      expect(run).toThrow(RangeError)
+      expect(run).toThrow(message)
+    }
   })
 
   test('regeneration returns fresh unselected objects', async () => {

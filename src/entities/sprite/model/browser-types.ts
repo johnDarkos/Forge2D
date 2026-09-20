@@ -1,4 +1,5 @@
-import type { SpriteFrameGeometry, SpriteSheetMetadata } from './types'
+import type { SpriteRect } from './editor-types'
+import type { SpriteSheetMetadata } from './types'
 
 /** Готовый локальный ресурс. Владелец сессии отвечает за освобождение URL. */
 export interface LoadedSpriteSheet {
@@ -14,5 +15,5 @@ export interface LoadedSpriteSheet {
 export interface SpritePreviewProps {
   readonly region?: boolean
   readonly sheet: LoadedSpriteSheet | null
-  readonly frame: SpriteFrameGeometry | null
+  readonly frame: (SpriteRect & { readonly displayNumber?: number }) | null
 }

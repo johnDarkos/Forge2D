@@ -69,11 +69,8 @@ export function createSpriteEditorResult(state: SpriteEditorDomainState): Sprite
   }
 }
 
-export function gridFrameToSprite(
-  frame: SpriteFrameGeometry,
-  id = `grid-${frame.x}-${frame.y}-${frame.width}-${frame.height}`,
-): SpriteFrame {
-  return manualFrameToSprite(frame, id, `frame_${String(frame.id + 1).padStart(3, '0')}`)
+export function gridFrameToSprite(frame: SpriteFrameGeometry, id = frame.id): SpriteFrame {
+  return manualFrameToSprite(frame, id, `frame_${String(frame.displayNumber).padStart(3, '0')}`)
 }
 export function manualFrameToSprite(rect: SpriteRect, id: string, name: string): SpriteFrame {
   return { id, name, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }

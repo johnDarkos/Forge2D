@@ -25,7 +25,7 @@ test('ZIP contains only requested frames, original IDs, sorted names and exact e
   expect([...entries.keys()]).toEqual(['frame_001.png', 'frame_005.png'])
   expect(new TextDecoder().decode(entries.get('frame_001.png'))).toBe('PNG bytes for crop 10,8')
   expect(new TextDecoder().decode(entries.get('frame_005.png'))).toBe('PNG bytes for crop 46,46')
-  expect(input.map((frame) => frame.id)).toEqual([4, 0])
+  expect(input.map((frame) => frame.id)).toEqual(['grid-46-46-32-32', 'grid-10-8-32-32'])
   expect(browser.downloads).toHaveLength(0)
   expect(browser.createObjectURL).not.toHaveBeenCalled()
 })

@@ -29,8 +29,8 @@ export interface EditorState {
   readonly selectionMode: SelectionMode
   readonly manualRegion: CropRect | null
   readonly sprites: readonly SpriteFrame[]
-  readonly spriteNumbers: ReadonlyMap<string, number>
-  readonly nextManualFrameId: number
+  readonly displayNumbers: ReadonlyMap<string, number>
+  readonly nextDisplayNumber: number
   readonly isDrawing: boolean
   readonly source: ImageLoadState
   readonly frameSizeInput: FrameSizeInput

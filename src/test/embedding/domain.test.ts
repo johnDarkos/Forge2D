@@ -25,7 +25,8 @@ test('result is an independent plain snapshot containing only public metadata', 
 
 test('manual result omits grid settings and normalization uses the same frame shape', () => {
   const geometry = {
-    id: 10,
+    id: 'grid-64-32-32-32',
+    displayNumber: 11,
     row: 1,
     column: 2,
     x: 64,

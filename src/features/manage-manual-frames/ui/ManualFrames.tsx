@@ -22,11 +22,11 @@ export function ManualFrames({ sheet, frames, disabled, onRename, onRemove }: Ma
                   <SpriteThumbnail
                     sheet={sheet}
                     frame={frame}
-                    label={`Saved frame ${frame.id + 1} preview`}
+                    label={`Saved frame ${frame.displayNumber} preview`}
                   />
                 </div>
                 <label>
-                  Frame {frame.id + 1} name
+                  Frame {frame.displayNumber} name
                   <input
                     type="text"
                     value={frame.name}
@@ -41,7 +41,7 @@ export function ManualFrames({ sheet, frames, disabled, onRename, onRemove }: Ma
                 <button
                   type="button"
                   disabled={disabled}
-                  aria-label={`Remove frame ${frame.id + 1}`}
+                  aria-label={`Remove frame ${frame.displayNumber}`}
                   onClick={() => onRemove(frame.id)}
                 >
                   Remove

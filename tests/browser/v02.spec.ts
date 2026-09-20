@@ -41,7 +41,7 @@ test('zoom and pan move the view, preserve selection and reset without changing 
   await page.mouse.click(visibleX, visibleY)
   await expect(page.getByText('Selected frames: 1', { exact: true })).toBeVisible()
   await expect(
-    page.getByText(`Frame ${row * 55 + column} · 32 × 32 px · (${column * 32}, ${row * 32})`, {
+    page.getByText(`Frame ${row * 55 + column + 1} · 32 × 32 px · (${column * 32}, ${row * 32})`, {
       exact: true,
     }),
   ).toBeVisible()

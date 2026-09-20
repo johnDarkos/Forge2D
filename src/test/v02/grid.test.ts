@@ -13,10 +13,50 @@ test('zero offsets and gaps preserve the MVP contract', () => {
 
 test('asymmetric rectangular frames do not swap axes', () => {
   expect(generateGrid(47, 29, 20, 10, { offsetX: 4, offsetY: 5, gapX: 3, gapY: 4 })).toEqual([
-    { id: 0, row: 0, column: 0, x: 4, y: 5, width: 20, height: 10, selected: false },
-    { id: 1, row: 0, column: 1, x: 27, y: 5, width: 20, height: 10, selected: false },
-    { id: 2, row: 1, column: 0, x: 4, y: 19, width: 20, height: 10, selected: false },
-    { id: 3, row: 1, column: 1, x: 27, y: 19, width: 20, height: 10, selected: false },
+    {
+      id: 'grid-4-5-20-10',
+      displayNumber: 1,
+      row: 0,
+      column: 0,
+      x: 4,
+      y: 5,
+      width: 20,
+      height: 10,
+      selected: false,
+    },
+    {
+      id: 'grid-27-5-20-10',
+      displayNumber: 2,
+      row: 0,
+      column: 1,
+      x: 27,
+      y: 5,
+      width: 20,
+      height: 10,
+      selected: false,
+    },
+    {
+      id: 'grid-4-19-20-10',
+      displayNumber: 3,
+      row: 1,
+      column: 0,
+      x: 4,
+      y: 19,
+      width: 20,
+      height: 10,
+      selected: false,
+    },
+    {
+      id: 'grid-27-19-20-10',
+      displayNumber: 4,
+      row: 1,
+      column: 1,
+      x: 27,
+      y: 19,
+      width: 20,
+      height: 10,
+      selected: false,
+    },
   ])
 })
 
@@ -35,7 +75,9 @@ test.each([
 
 for (const field of ['offsetX', 'offsetY', 'gapX', 'gapY'] as const) {
   test.each([-1, 0.5, NaN, Infinity])(`invalid ${field} %s is rejected`, (value) => {
-    expect(() => generateGrid(114, 78, 32, 32, { ...spacing, [field]: value })).toThrow(/.+/)
+    const run = () => generateGrid(114, 78, 32, 32, { ...spacing, [field]: value })
+    expect(run).toThrow(RangeError)
+    expect(run).toThrow('Offsets and gaps must be non-negative integers')
   })
 }
 

@@ -144,10 +144,10 @@ PNG/ZIP продолжают работать отдельно. В grid они �
 ## Совместимость типов
 
 Предварительный `SpriteEditorResult { source, frames }` заменён утверждённым
-FEAT-001 контрактом `{ source, sprites, settings }`. Прежний тип ячейки с числовым
-ID и selected переименован в `GridFrame`. Новый `SpriteFrame` — публичная доменная
-сущность со строковым ID. `generateFrames` и `exportFrame` сохранили поведение
-и геометрию; старые тесты используют GridFrame без изменения ожиданий.
+FEAT-001 контрактом `{ source, sprites, settings }`. `SpriteFrame`, `GridFrame`
+и feature-контракты используют строковый ID. `GridFrame.displayNumber` отвечает
+за подпись и friendly filename, но не участвует в rename/remove/select.
+`exportFrame` принимает прямоугольник без требования ID.
 `SpriteEditorSource` сохранён как прежний тип описания файла, но не используется
 в новом результате; актуальный тип источника результата — `SpriteSource`.
 

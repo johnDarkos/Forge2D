@@ -4,7 +4,7 @@ import type { ExportFrameItem } from '../model/types'
 export function frameFileNames(frames: readonly ExportFrameItem[]): string[] {
   const used = new Set<string>()
   return frames.map((frame) => {
-    const fallback = `frame_${String(frame.id + 1).padStart(3, '0')}`
+    const fallback = `frame_${String(frame.displayNumber).padStart(3, '0')}`
     let base =
       Array.from(frame.name ?? fallback, (character) =>
         character.charCodeAt(0) < 32 ? '_' : character,

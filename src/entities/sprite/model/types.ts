@@ -1,9 +1,10 @@
-/** ID кадра в порядке строк, начиная с нуля. */
-export type SpriteFrameId = number
+/** Стабильный ID кадра; порядок отображения хранится отдельно. */
+export type SpriteFrameId = string
 
 /** Геометрия полного кадра в исходных пикселях; не зависит от масштаба Canvas. */
 export interface SpriteFrameGeometry {
   readonly id: SpriteFrameId
+  readonly displayNumber: number
   readonly row: number
   readonly column: number
   readonly x: number
@@ -17,7 +18,7 @@ export interface GridFrame extends SpriteFrameGeometry {
   selected: boolean
 }
 
-/** Сохранённая ручная вырезка; ID стабилен при удалении соседних кадров. */
+/** Сохранённая вырезка; ID не зависит от номера карточки. */
 export interface NamedSpriteFrame extends SpriteFrameGeometry {
   readonly name: string
 }

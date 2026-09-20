@@ -24,6 +24,7 @@ pnpm dev
 - `pnpm typecheck` — проверка TypeScript без сборки приложения.
 - `pnpm test` — запуск Vitest в режиме наблюдения.
 - `pnpm test:run` — однократный запуск тестов, в том числе в CI.
+- `pnpm test:coverage` — тесты с отчётом покрытия и проверкой порогов.
 
 Vitest использует алиасы и React-плагин из Vite, окружение `jsdom` и React Testing
 Library. Размещайте тесты в файлах `*.test.ts` / `*.test.tsx` рядом с исходниками.
@@ -87,7 +88,7 @@ MVP реализует локальную загрузку → сетку → в
 чистый domain API и результат без UI-состояния. Реализованы внешний image, initialData, Save/onSave и Cancel/onCancel.
 
 Реализация и тесты: [v0.2 — контракты и история TDD](docs/test/v02.md).
-После FEAT-001 полный набор: 152 Vitest и 16 Playwright, все GREEN.
+После унификации идентичности кадров полный набор: 165 Vitest и 16 Playwright, все GREEN.
 
 ## Возможности v0.2
 
