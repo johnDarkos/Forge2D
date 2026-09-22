@@ -380,3 +380,25 @@ FEAT-001 реализует публичный результат и его пе
 браузерный хост — tests/fixtures/embedded.html, сценарии — tests/browser/embedding.spec.ts.
 Подробности: [контракт FEAT-001](features/sprite-editor-embedding.md) и
 [граница интеграции](ecosystem-integration.md).
+
+## 13. Forge2D Asset Model
+
+```text
+Project.assets
+  → findSpriteAsset + findTextureAsset
+  → spriteAssetToEditorInput
+  → { image, initialData }
+  → <SpriteEditor key={spriteAsset.id}>
+
+Save(result)
+  → host try/catch
+  → spriteEditorResultToSpriteAsset
+  → проверка source против TextureAsset
+  → upsertProjectAsset
+  → новый immutable Project
+```
+
+`key` связан с ID SpriteAsset, а не URI текстуры. Поэтому переключение между
+idle/run assets одного атласа создаёт отдельные сессии. Ошибку адаптера отображает
+host: исключение, выпущенное наружу из `onSave`, редактор заменил бы общей ошибкой.
+В production persistence пока отсутствует. [Контракт FEAT-002](features/forge2d-asset-model.md).

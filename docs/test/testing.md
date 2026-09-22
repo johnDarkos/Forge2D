@@ -6,7 +6,7 @@
 
 ## Текущее состояние
 
-Актуальный полный прогон после очистки дублирующих сценариев: **141 Vitest и 16 Playwright**,
+Актуальный полный прогон после FEAT-002: **173 Vitest и 17 Playwright**,
 все проверки проходят. Числа ниже для MVP и интеграции отражают историю этапов.
 
 Тесты написаны до реализации MVP; сейчас основной сценарий реализован. Зафиксированный первый прогон содержит
@@ -30,6 +30,7 @@
 | `pnpm exec vitest run src/test/mvp/grid.test.ts`    | Расчёт сетки                                 |
 | `pnpm exec vitest run src/test/mvp/export.test.ts`  | Нарезка и кодирование                        |
 | `pnpm exec vitest run src/test/mvp/editor.test.tsx` | Сценарии через интерфейс                     |
+| `pnpm exec vitest run src/test/asset`               | Forge2D Project/Asset и adapter              |
 | `pnpm exec vitest run -t 'CSS-scaled canvas'`       | Выбор теста по части названия                |
 | `pnpm typecheck`                                    | Проверка TypeScript приложения и тестов      |
 | `pnpm lint`                                         | Проверка Oxlint, включая правила Vitest      |
@@ -398,4 +399,20 @@ source/sprites/settings вместо source/frames. Геометрические
 ```sh
 pnpm exec vitest run src/test/embedding
 pnpm exec playwright test tests/browser/embedding.spec.ts
+```
+
+## FEAT-002: Forge2D Asset Model
+
+`src/test/asset` проверяет чистый Project domain, URI/schema/ID, ссылки assets,
+immutable upsert/remove, оба направления адаптера, type-level соответствие и
+интеграцию настоящего SpriteEditor с Project в памяти. Общий набор невалидных
+rect используется для обеих сторон границы без перебора всех комбинаций.
+
+`tests/browser/assets.spec.ts` сохраняет и повторно открывает SpriteAsset, затем
+переключает второй SpriteAsset на той же TextureAsset. Проверяются стабильный
+frame ID, новое имя и чтение состояния именно из Project после remount.
+
+```sh
+pnpm exec vitest run src/test/asset
+pnpm exec playwright test tests/browser/assets.spec.ts
 ```

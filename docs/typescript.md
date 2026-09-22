@@ -131,3 +131,15 @@ SpriteEditorInitialData, SpriteEditorImage, SpriteEditorResult и domain-сос�
 проверяет целочисленные размеры, границы rect и уникальность ID. Результат копируется
 по разрешённым полям, поэтому дополнительные свойства входных объектов не утекают.
 [Полное описание API](features/sprite-editor-embedding.md).
+
+## Forge2D Project domain
+
+`entities/project/domain.ts` экспортирует Project, Asset, TextureAsset и
+SpriteAsset без DOM/React. `features/manage-sprite-asset` зависит только от
+`entities/project/domain` и `entities/sprite/domain`; импорт widget API в feature
+не используется. Оба entrypoint включены в `tsconfig.domain.json` с `lib: ES2023`
+и пустым списком ambient types.
+
+Asset-модель намеренно имеет собственные `AssetRect` и `AssetSpriteFrame`.
+Адаптер копирует поля на границе, а `expectTypeOf` проверяет структурную
+совместимость с типами редактора. В manual settings поле grid опускается полностью.

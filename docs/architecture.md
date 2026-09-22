@@ -12,7 +12,9 @@
 | features/configure-grid      | GridSettings                                                      | Управляемые поля размера и сообщения валидации            |
 | features/select-sprite       | SpriteCanvas                                                      | Отрисовка сетки, выбор мышью и клавиатурой                |
 | features/export-sprites      | ExportButton, exportFrame, downloadBlob                           | Нарезка исходника, PNG, отдельные скачивания              |
+| features/manage-sprite-asset | spriteAssetAdapter                                                | Граница между Forge2D assets и Sprite Editor              |
 | entities/sprite              | SpritePreview, generateFrames, validateGrid, isSupportedImageType | Сущность кадра и её независимая логика                    |
+| entities/project             | Project, TextureAsset, SpriteAsset                                | Чистая сериализуемая модель assets Forge2D                |
 
 Зависимости направлены вниз: app → pages → widgets → features → entities.
 Слайсы одного слоя не импортируют друг друга; внешний код использует `index.ts`.
@@ -111,6 +113,17 @@ Hide tools / Show tools сворачивают инструменты без с�
 одну коллекцию; карточки видны в обоих режимах.
 
 [Контракт и пограничные случаи](features/sprite-editor-embedding.md).
+
+## Forge2D Asset Model (FEAT-002)
+
+`entities/project` не импортирует Sprite Editor и содержит собственные
+`AssetRect`/`AssetSpriteFrame`. `features/manage-sprite-asset` является явной
+границей: он импортирует project domain и sprite domain, преобразует результат
+Save в SpriteAsset и готовит image/initialData для открытия.
+
+Project изменяется immutable-операциями и пока хранится только в памяти host.
+Тестовый `AssetHost` монтирует SpriteEditor с key по SpriteAsset ID, поэтому два
+assets одного атласа не разделяют session state. [Полный контракт](features/forge2d-asset-model.md).
 
 ## Расположение документации
 

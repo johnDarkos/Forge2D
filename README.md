@@ -88,7 +88,7 @@ MVP реализует локальную загрузку → сетку → в
 чистый domain API и результат без UI-состояния. Реализованы внешний image, initialData, Save/onSave и Cancel/onCancel.
 
 Реализация и тесты: [v0.2 — контракты и история TDD](docs/test/v02.md).
-После очистки дублирующих сценариев полный набор: 141 Vitest и 16 Playwright, все GREEN.
+После FEAT-002 полный набор: 173 Vitest и 17 Playwright, все GREEN.
 
 ## Возможности v0.2
 
@@ -115,4 +115,8 @@ MVP реализует локальную загрузку → сетку → в
 [FEAT-001: встраивание SpriteEditor](docs/features/sprite-editor-embedding.md) —
 внешнее изображение, начальные кадры, типизированный результат и callbacks.
 Тестовый хост доступен при `pnpm dev` по `/tests/fixtures/embedded.html`.
-Save возвращает метаданные владельцу; сохранение проекта Forge2D не реализовано.
+Save возвращает метаданные владельцу.
+
+[FEAT-002: Forge2D Asset Model](docs/features/forge2d-asset-model.md) добавляет
+Project, TextureAsset, SpriteAsset и чистый host adapter. Тестовый in-memory host:
+`/tests/fixtures/asset-host.html`. Production persistence пока не реализован.

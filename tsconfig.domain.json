@@ -6,5 +6,9 @@
     "types": [],
     "skipLibCheck": false
   },
-  "include": ["src/entities/sprite/domain.ts"]
+  "include": [
+    "src/entities/sprite/domain.ts",
+    "src/entities/project/domain.ts",
+    "src/features/manage-sprite-asset/index.ts"
+  ]
 }

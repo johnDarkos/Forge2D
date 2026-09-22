@@ -6,6 +6,7 @@ type Sheet = { name: string; type: string; width: number; height: number }
 export function installBrowser() {
   const files = new WeakMap<Blob, Sheet & { broken?: boolean }>()
   const urls = new Map<string, Blob>()
+  const externalImages = new Map<string, Sheet & { broken?: boolean }>()
   const contexts = new Map<HTMLCanvasElement, ReturnType<typeof makeContext>>()
   const downloads: { name: string; blob: Blob | undefined }[] = []
   let serial = 0
@@ -40,7 +41,7 @@ export function installBrowser() {
           set: (url: string) => {
             source = url
             const blob = urls.get(url)
-            const sheet = blob && files.get(blob)
+            const sheet = (blob && files.get(blob)) || externalImages.get(url)
             const complete = () => {
               if (!sheet || sheet.broken) {
                 image.dispatchEvent(new Event('error'))
@@ -135,6 +136,9 @@ export function installBrowser() {
     },
     pendingImages,
     file,
+    registerImage: (url: string, sheet: Sheet = player, broken = false) => {
+      externalImages.set(url, { ...sheet, broken })
+    },
     contexts,
     context,
     createObjectURL,

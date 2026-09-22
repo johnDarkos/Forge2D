@@ -2,7 +2,9 @@
 
 Sprite Editor — независимый инструмент, продуктовое название в интерфейсе —
 Sprite Cutter. Подготовка описана в [исходной спецификации](forge2d-sprite-editor-integration-spec.md).
-Следующий этап **FEAT-001 реализован**: [публичный API и правила](features/sprite-editor-embedding.md).
+Этап **FEAT-001 реализован**: [публичный API и правила](features/sprite-editor-embedding.md).
+Минимальная модель Project/Asset этапа **FEAT-002** описана в
+[контракте Asset Model](features/forge2d-asset-model.md).
 
 ```text
 Standalone: App → EditorPage → SpriteEditor → sprite domain
@@ -40,11 +42,13 @@ Save передаёт метаданные через `onSave`, Cancel вызы�
 ## Что остаётся за пределами редактора
 
 Зависимостей от Forge2D Engine, PixiJS, игровых Scene/Entity, Steam/Yandex нет.
-Не добавлены Project Store, Asset Manager, IndexedDB, backend, project.json,
-autosave или plugin system. Подключение Save к реальному Forge2D ещё предстоит.
+Добавлены чистый Project domain, TextureAsset/SpriteAsset и host adapter.
+Не добавлены production Project Store, Asset Manager, IndexedDB, backend,
+project.json, autosave или plugin system. Подключение к реальному Forge2D UI ещё предстоит.
 Общие CSS-стили пока требуют согласования с оформлением хоста.
 Monorepo и извлечение sprite-core откладываются до второго реального потребителя.
 
-Тестовый хост: `/tests/fixtures/embedded.html` при запуске Vite.
-Проверки API: `src/test/embedding` и `tests/browser/embedding.spec.ts`.
+Тестовые хосты: `/tests/fixtures/embedded.html` и
+`/tests/fixtures/asset-host.html` при запуске Vite. Проверки FEAT-002:
+`src/test/asset` и `tests/browser/assets.spec.ts`.
 Архитектура: [architecture.md](architecture.md). Поток данных: [data-flow.md](data-flow.md).
