@@ -171,5 +171,10 @@ pnpm exec playwright test tests/browser/embedding.spec.ts
 ```
 
 Подключение к самому Forge2D Project Store, Asset Model и persistence не входят
-в FEAT-001. Компонент React готов к встраиванию; текущие общие стили приложения
-пока не изолированы отдельным CSS-пакетом или Shadow DOM.
+в FEAT-001. Компонент React готов к встраиванию.
+
+Стили: компонент сам подключает свой CSS, ограниченный корнем `.sprite-editor`, и не
+требует от хоста глобального reset. Хосту не нужно импортировать `src/index.css` —
+это оболочка standalone-приложения. `tests/browser/style-isolation.spec.ts` проверяет,
+что конфликтующие `*`, `body`, `button`, `input`, `h1`, `h2`, `p`, `label` хоста не меняют
+редактор, а редактор — хост. Подробности: [architecture.md](../architecture.md#изоляция-стилей).

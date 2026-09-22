@@ -1,0 +1,555 @@
+/*
+ * Стили встраиваемого Sprite Editor.
+ *
+ * Каждый селектор начинается с корня `.sprite-editor`, поэтому редактор не меняет разметку хоста.
+ * Обратное направление закрывает локальный reset: `all: revert` снимает с элементов редактора
+ * авторские стили хоста и возвращает их к стилям браузера. Его специфичность (0,1,0) выше
+ * у типовых селекторов хоста (`button`, `p`, `*`), а правила редактора ниже — (0,1,1) и выше —
+ * перекрывают сам reset. Наследуемые свойства (шрифт, цвет, color-scheme) задаются на корне явно,
+ * чтобы не приходить из `body` хоста.
+ *
+ * Глобальные правила (`html`, `body`) принадлежат standalone-оболочке: `src/index.css`.
+ */
+.sprite-editor {
+  all: revert;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: normal;
+  text-align: start;
+  text-transform: none;
+  color: #e2e8f0;
+  background: #10131c;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  color-scheme: dark;
+}
+.sprite-editor :where(*),
+.sprite-editor :where(*)::before,
+.sprite-editor :where(*)::after,
+.sprite-editor :where(*)::file-selector-button {
+  all: revert;
+}
+.sprite-editor,
+.sprite-editor *,
+.sprite-editor *::before,
+.sprite-editor *::after {
+  box-sizing: border-box;
+}
+.sprite-editor button,
+.sprite-editor input {
+  font: inherit;
+}
+.sprite-editor button,
+.sprite-editor input[type='file']::file-selector-button {
+  border: 0;
+  border-radius: 8px;
+  background: #6366f1;
+  color: white;
+  padding: 12px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sprite-editor button:hover:not(:disabled),
+.sprite-editor input[type='file']::file-selector-button:hover {
+  background: #818cf8;
+}
+.sprite-editor button:disabled,
+.sprite-editor input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sprite-editor :focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 4px;
+}
+.sprite-editor h1 {
+  font-size: 26px;
+  letter-spacing: -1px;
+  margin: 4px 0 0;
+}
+.sprite-editor h2 {
+  font-size: 17px;
+  margin: 0 0 20px;
+}
+.sprite-editor p {
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.sprite-editor {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+}
+.sprite-editor .editor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.sprite-editor .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #a5b4fc;
+}
+.sprite-editor .muted {
+  color: #a4aec0;
+  font-size: 13px;
+}
+.sprite-editor .panel {
+  background: #191e2b;
+  border: 1px solid #2c3447;
+  border-radius: 14px;
+  padding: 24px;
+  min-width: 0;
+}
+.sprite-editor .uploader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.sprite-editor .upload-label {
+  font-weight: 600;
+}
+.sprite-editor input[type='file'] {
+  max-width: 100%;
+  font-size: 13px;
+}
+.sprite-editor input[type='file']::file-selector-button {
+  margin-right: 12px;
+}
+.sprite-editor .editor-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.sprite-editor .workspace-stack {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+}
+.sprite-editor .sheet-info {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.sprite-editor .sheet-info span {
+  color: #a4aec0;
+}
+.sprite-editor .workspace {
+  min-height: 420px;
+}
+.sprite-editor .empty-state {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #a4aec0;
+  border: 1px dashed #374258;
+  border-radius: 8px;
+  padding: 20px;
+}
+.sprite-editor .canvas-wrap,
+.sprite-editor .preview-wrap {
+  background-color: #202736;
+  background-image: conic-gradient(#293245 25%, transparent 0 50%, #293245 0 75%, transparent 0);
+  background-size: 16px 16px;
+  border-radius: 6px;
+}
+.sprite-editor .canvas-wrap {
+  overflow: auto;
+}
+.sprite-editor .canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+.sprite-editor .canvas-help {
+  margin-top: 16px;
+}
+.sprite-editor .size-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sprite-editor .size-fields label {
+  font-size: 12px;
+  color: #bac3d4;
+}
+.sprite-editor input[type='number'] {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #3a455c;
+  border-radius: 7px;
+  padding: 10px;
+  background: #101622;
+  color: white;
+}
+.sprite-editor input[aria-invalid='true'] {
+  border-color: #fb7185;
+}
+.sprite-editor .grid-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 12px;
+  font-size: 13px;
+}
+.sprite-editor .grid-summary strong {
+  width: 100%;
+  color: #a5b4fc;
+}
+.sprite-editor .preview-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.sprite-editor .preview-wrap canvas {
+  width: 128px;
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.sprite-editor .export-action {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sprite-editor [role='alert'] {
+  color: #fda4af;
+  font-size: 13px;
+}
+.sprite-editor .canvas-wrap {
+  overflow: hidden;
+  position: relative;
+}
+
+.sprite-editor .selection-mode {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sprite-editor .selection-mode button {
+  background: #303b53;
+}
+.sprite-editor .selection-mode button[aria-pressed='true'] {
+  background: #6366f1;
+}
+.sprite-editor .manual-selection {
+  touch-action: none;
+  user-select: none;
+}
+.sprite-editor .selection-mode {
+  border: 0;
+  padding: 0;
+  margin-inline: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.sprite-editor .collection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sprite-editor .collection-heading h2 {
+  margin: 0;
+}
+.sprite-editor .frame-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+.sprite-editor .frame-card {
+  border: 1px solid #374258;
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.sprite-editor .frame-card label {
+  font-size: 12px;
+  color: #bac3d4;
+}
+.sprite-editor .frame-card input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid #3a455c;
+  border-radius: 6px;
+  padding: 8px;
+  background: #101622;
+  color: white;
+}
+.sprite-editor .frame-card button {
+  background: #303b53;
+  font-size: 12px;
+  padding: 8px;
+}
+.sprite-editor .frame-thumbnail {
+  height: 100px;
+  display: grid;
+  place-items: center;
+  background-color: #202736;
+  background-image: conic-gradient(#293245 25%, transparent 0 50%, #293245 0 75%, transparent 0);
+  background-size: 16px 16px;
+}
+.sprite-editor .frame-thumbnail canvas {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.sprite-editor .tools-sidebar {
+  position: sticky;
+  top: 16px;
+  height: calc(100dvh - 130px);
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  background: #191e2b;
+  border: 1px solid #2c3447;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.sprite-editor .tools-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid #2c3447;
+}
+.sprite-editor .tools-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.sprite-editor .tools-toggle {
+  display: none;
+  background: #303b53;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.sprite-editor .tool-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c7d2fe;
+  background: #6366f126;
+  border: 1px solid #6366f150;
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+.sprite-editor .tools-content {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #485570 transparent;
+  flex: 1;
+}
+.sprite-editor .tool-section {
+  padding: 18px;
+  border-bottom: 1px solid #2c3447;
+}
+.sprite-editor .tool-section:last-child {
+  border-bottom: 0;
+}
+.sprite-editor .tool-section h2,
+.sprite-editor .tool-export h2 {
+  font-size: 13px;
+  margin: 0 0 12px;
+  color: #cbd5e1;
+}
+.sprite-editor .tool-section .muted,
+.sprite-editor .tool-export .muted {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.sprite-editor .tool-section .uploader {
+  display: grid;
+  gap: 8px;
+}
+.sprite-editor .tool-section .upload-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: #a4aec0;
+}
+.sprite-editor .tool-section input[type='file'] {
+  width: 100%;
+  font-size: 11px;
+}
+.sprite-editor .tool-section input[type='file']::file-selector-button {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.sprite-editor .tool-section .selection-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sprite-editor .tool-section button {
+  padding: 9px 8px;
+  font-size: 12px;
+}
+.sprite-editor .selection-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.sprite-editor .selection-actions button {
+  flex: 1;
+  background: #303b53;
+}
+.sprite-editor .tool-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sprite-editor .tool-section-heading output {
+  font-variant-numeric: tabular-nums;
+  color: #a5b4fc;
+  font-size: 12px;
+}
+.sprite-editor .zoom-controls {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  gap: 6px;
+}
+.sprite-editor .zoom-controls button {
+  background: #303b53;
+}
+.sprite-editor .zoom-controls button:first-child,
+.sprite-editor .zoom-controls button:last-child {
+  font-size: 18px;
+  padding: 4px;
+}
+.sprite-editor .tools-sidebar .grid-summary {
+  gap: 8px;
+  margin: 14px 0 6px;
+  font-size: 12px;
+}
+.sprite-editor .tools-sidebar input[type='number'] {
+  margin-top: 6px;
+  padding: 8px;
+}
+.sprite-editor .tools-sidebar .preview-wrap {
+  min-height: 112px;
+  padding: 10px;
+}
+.sprite-editor .tools-sidebar .preview-wrap canvas {
+  width: 100px;
+  max-height: 140px;
+}
+.sprite-editor .add-frame-action {
+  width: 100%;
+  margin-top: 8px;
+}
+.sprite-editor .tool-export {
+  padding: 16px 18px;
+  border-top: 1px solid #374258;
+  background: #1d2434;
+}
+.sprite-editor .tool-export .selection-status {
+  font-size: 12px;
+  margin-bottom: 10px;
+  color: #cbd5e1;
+}
+.sprite-editor .tool-export .export-action button {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sprite-editor .tool-export [role='alert'] {
+  width: 100%;
+  margin-bottom: 0;
+}
+@media (max-width: 800px) {
+  .sprite-editor {
+    padding: 16px;
+  }
+  .sprite-editor .editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .sprite-editor .tools-sidebar {
+    position: static;
+    height: auto;
+    min-height: 0;
+  }
+  .sprite-editor .tools-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+  }
+  .sprite-editor .tools-toggle {
+    display: block;
+  }
+  .sprite-editor .tools-collapsed .tools-content {
+    display: none;
+  }
+  .sprite-editor .tool-section {
+    min-width: 0;
+  }
+  .sprite-editor .tool-export .export-action {
+    max-width: 400px;
+  }
+}
+@media (max-width: 480px) {
+  .sprite-editor {
+    padding: 12px;
+    gap: 14px;
+  }
+  .sprite-editor .editor-heading > .muted {
+    display: none;
+  }
+  .sprite-editor .tools-content {
+    grid-template-columns: 1fr;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  .sprite-editor .panel {
+    padding: 16px;
+  }
+  .sprite-editor .frame-list {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+.sprite-editor .session-actions {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #374258;
+}
+.sprite-editor .session-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+.sprite-editor .session-action-buttons button {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 12px;
+}

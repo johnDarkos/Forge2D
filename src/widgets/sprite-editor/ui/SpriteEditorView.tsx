@@ -2,12 +2,13 @@ import { ManualFrames } from '@/features/manage-manual-frames'
 import { SpriteCanvas } from '@/features/select-sprite'
 import type { SpriteEditorViewProps } from '../model/types'
 import { EditorSidebar } from './EditorSidebar'
+import './SpriteEditor.css'
 
 /** Компоновка без дублирования состояния дочерних features. */
 export function SpriteEditorView(props: SpriteEditorViewProps) {
   const sheet = props.canvas.sheet
   return (
-    <main className="editor">
+    <main className="sprite-editor">
       <header className="editor-heading">
         <div>
           <p className="eyebrow">LOCAL SPRITE TOOL</p>
