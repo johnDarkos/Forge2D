@@ -45,7 +45,8 @@ Save передаёт метаданные через `onSave`, Cancel вызы�
 Добавлены чистый Project domain, TextureAsset/SpriteAsset и host adapter.
 Не добавлены production Project Store, Asset Manager, IndexedDB, backend,
 project.json, autosave или plugin system. Подключение к реальному Forge2D UI ещё предстоит.
-Общие CSS-стили пока требуют согласования с оформлением хоста.
+Стили редактора изолированы корнем `.sprite-editor` и локальным reset
+([architecture.md](architecture.md#изоляция-стилей)); глобальные правила остаются у хоста.
 Monorepo и извлечение sprite-core откладываются до второго реального потребителя.
 
 Тестовые хосты: `/tests/fixtures/embedded.html` и

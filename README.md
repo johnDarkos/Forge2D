@@ -88,7 +88,7 @@ MVP реализует локальную загрузку → сетку → в
 чистый domain API и результат без UI-состояния. Реализованы внешний image, initialData, Save/onSave и Cancel/onCancel.
 
 Реализация и тесты: [v0.2 — контракты и история TDD](docs/test/v02.md).
-После FEAT-002 полный набор: 173 Vitest и 17 Playwright, все GREEN.
+После изоляции стилей полный набор: 181 Vitest и 18 Playwright, все GREEN.
 
 ## Возможности v0.2
 

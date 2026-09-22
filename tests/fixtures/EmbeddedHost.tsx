@@ -7,7 +7,10 @@ const first =
   new URL('../../src/test/fixtures/player.png', import.meta.url).href
 const second = new URL('../../src/test/fixtures/enemy.png', import.meta.url).href
 
-/** Тестовый владелец: передаёт ресурс, принимает метаданные, самостоятельно реагирует на Cancel. */
+/**
+ * Тестовый владелец: передаёт ресурс, принимает метаданные, самостоятельно реагирует на Cancel.
+ * Собственные h1/p/input/button хоста оформлены конфликтующим host.css.
+ */
 export function EmbeddedHost() {
   const [replaced, setReplaced] = useState(false)
   const [result, setResult] = useState<SpriteEditorResult | null>(null)
@@ -15,7 +18,12 @@ export function EmbeddedHost() {
   const [cancels, setCancels] = useState(0)
   return (
     <>
-      <div className="panel">
+      <header aria-label="Host chrome">
+        <h1>Forge2D host</h1>
+        <p>Host paragraph</p>
+        <input aria-label="Host search" />
+      </header>
+      <div>
         <button type="button" onClick={() => setReplaced((value) => !value)}>
           Replace external image
         </button>
