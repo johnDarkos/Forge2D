@@ -6,7 +6,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'jsdom',
-      exclude: [...configDefaults.exclude, 'tests/browser/**'],
+      exclude: [...configDefaults.exclude, 'tests/browser/**', '**/worktrees/**'],
       setupFiles: ['./src/test/setup.ts'],
       clearMocks: true,
       restoreMocks: true,

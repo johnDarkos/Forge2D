@@ -3,18 +3,18 @@
 Рабочий MVP построен по FSD. Поток данных описан в [data-flow.md](data-flow.md),
 контракты TypeScript — в [typescript.md](typescript.md).
 
-| Слой / слайс                 | Модули                                                            | Ответственность                                           |
-| ---------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
-| app                          | App                                                               | Подключение страницы                                      |
-| pages/editor                 | EditorPage                                                        | Рабочий экран                                             |
-| widgets/sprite-editor        | useEditor, SpriteEditor, SpriteEditorView                         | Ресурс изображения, состояние сессии, связывание features |
-| features/upload-sprite-sheet | SpriteUploader                                                    | Выбор и проверка MIME файла                               |
-| features/configure-grid      | GridSettings                                                      | Управляемые поля размера и сообщения валидации            |
-| features/select-sprite       | SpriteCanvas                                                      | Отрисовка сетки, выбор мышью и клавиатурой                |
-| features/export-sprites      | ExportButton, exportFrame, downloadBlob                           | Нарезка исходника, PNG, отдельные скачивания              |
-| features/manage-sprite-asset | spriteAssetAdapter                                                | Граница между Forge2D assets и Sprite Editor              |
-| entities/sprite              | SpritePreview, generateFrames, validateGrid, isSupportedImageType | Сущность кадра и её независимая логика                    |
-| entities/project             | Project, TextureAsset, SpriteAsset                                | Чистая сериализуемая модель assets Forge2D                |
+| Слой / слайс                 | Модули                                                            | Ответственность                                |
+| ---------------------------- | ----------------------------------------------------------------- | ---------------------------------------------- |
+| app                          | App                                                               | Подключение страницы                           |
+| pages/editor                 | EditorPage                                                        | Рабочий экран                                  |
+| widgets/sprite-editor        | useEditor, session reducer, SpriteEditor, SpriteEditorView        | Оркестрация сессии и связывание features       |
+| features/upload-sprite-sheet | SpriteUploader                                                    | Выбор и проверка MIME файла                    |
+| features/configure-grid      | GridSettings                                                      | Управляемые поля размера и сообщения валидации |
+| features/select-sprite       | SpriteCanvas                                                      | Отрисовка сетки, выбор мышью и клавиатурой     |
+| features/export-sprites      | ExportButton, exportFrame, downloadBlob                           | Нарезка исходника, PNG, отдельные скачивания   |
+| features/manage-sprite-asset | spriteAssetAdapter                                                | Граница между Forge2D assets и Sprite Editor   |
+| entities/sprite              | SpritePreview, generateFrames, validateGrid, isSupportedImageType | Сущность кадра и её независимая логика         |
+| entities/project             | Project, TextureAsset, SpriteAsset                                | Чистая сериализуемая модель assets Forge2D     |
 
 Зависимости направлены вниз: app → pages → widgets → features → entities.
 Слайсы одного слоя не импортируют друг друга; внешний код использует `index.ts`.
@@ -22,9 +22,12 @@ Shared пока не нужен: предметная логика размещ�
 Это соответствует [правилам публичного API FSD](https://fsd.how/docs/reference/public-api/).
 
 `src/main.tsx` подключает App. SpriteEditor получает состояние и обработчики
-из useEditor, затем передаёт их внутреннему SpriteEditorView. Модель хранит
-исходные значения, а кадры, selected и счётчики вычисляются. Effect загрузки
-освобождает URL и игнорирует результат отменённого запроса.
+из useEditor, затем передаёт их внутреннему SpriteEditorView. Чистый
+`editorSessionReducer` выполняет переходы стабильного состояния: источник,
+настройки, выбор, коллекция кадров, viewport и признаки взаимодействия.
+`useEditor` координирует reducer с загрузкой изображения, доменными функциями,
+Save/Cancel и формированием props. Вычисляемые кадры не дублируются в состоянии.
+Effect загрузки освобождает URL и игнорирует результат отменённого запроса.
 
 ExportButton владеет статусом экспорта, передаёт isExporting в редактор и
 фиксирует выбранные кадры на старте. Смена файла, размеров и выделения
@@ -124,6 +127,32 @@ Save в SpriteAsset и готовит image/initialData для открытия.
 Project изменяется immutable-операциями и пока хранится только в памяти host.
 Тестовый `AssetHost` монтирует SpriteEditor с key по SpriteAsset ID, поэтому два
 assets одного атласа не разделяют session state. [Полный контракт](features/forge2d-asset-model.md).
+
+## Состояние сессии редактора
+
+Стабильное состояние находится в `EditorState` и изменяется только через
+`editorSessionReducer`. В reducer нет React, DOM-загрузки, скачиваний и вызовов
+хоста, поэтому переходы тестируются напрямую. `useEditor` оставляет локальными
+только состояние внешних асинхронных операций и служебные реестры: текущий запрос,
+ошибки UI, Save, последовательность загрузок и таблицы стабильных ID.
+
+Единое правило занятости — `isEditorBusy(state, saving)`: редактор занят во время
+Save или экспорта. `actionRunning` остаётся синхронным предохранителем двойного
+Save до следующего React render и не является отдельным UI-состоянием.
+
+Три React `key` являются осознанными границами жизненного цикла:
+
+- `SpriteEditorSession` получает key по внешнему `image.src`. Смена источника
+  создаёт новую сессию и отменяет старую загрузку; тот же src сохраняет правки.
+- `SpriteCanvas` получает key по `sheet.url`. Новый источник очищает локальный
+  draft жеста, клавиатурный фокус кадра и состояние pan.
+- `ExportButton` получает key по `sheet.url`. Новый источник очищает локальную
+  ошибку и статус завершённого экспорта; состояние общей сессии меняется через
+  `onExportingChange`.
+
+Эти key не используются для обычного обновления сетки, режима или коллекции,
+поэтому такие изменения не размонтируют компоненты и не скрывают переходы reducer.
+[Подробный поток](data-flow.md#2-владельцы-состояния).
 
 ## Расположение документации
 

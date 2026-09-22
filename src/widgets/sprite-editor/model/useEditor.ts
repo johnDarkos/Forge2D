@@ -1,101 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { generateFrames, isSupportedImageType, validateGrid } from '@/entities/sprite'
 import {
   createSpriteEditorResult,
   gridFrameToSprite,
   manualFrameToSprite,
-  renameSprite,
-  removeSprite,
 } from '@/entities/sprite/domain'
-import type {
-  GridOptionsInput,
-  NamedSpriteFrame,
-  SpriteFrame,
-  SpriteFrameGeometry,
-  SpriteGridSettings,
-} from '@/entities/sprite'
+import type { NamedSpriteFrame, SpriteFrame, SpriteFrameGeometry } from '@/entities/sprite'
 import type { UploadError } from '@/features/upload-sprite-sheet'
-import type { EditorState, SpriteEditorProps, SpriteEditorViewProps } from './types'
+import {
+  createInitialEditorState,
+  editorSessionReducer,
+  gridSettingsFromState,
+  isEditorBusy,
+  mergeSprites,
+  sameRect,
+} from './session'
+import type { EditorSessionAction } from './session'
+import type { SpriteEditorProps, SpriteEditorViewProps } from './types'
 
 type SourceRequest = { id: number; initialize: boolean } & (
   { kind: 'file'; file: File } | { kind: 'external'; src: string; name: string }
 )
 
-const sameRect = (a: SpriteFrame['rect'], b: SpriteFrame['rect']) =>
-  a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
-
-/** Номера карточек относятся к UI; строковые domain ID не зависят от порядка и имени. */
-function storeSprites(state: EditorState, sprites: readonly SpriteFrame[]): EditorState {
-  const displayNumbers = new Map(state.displayNumbers)
-  let nextDisplayNumber = state.nextDisplayNumber
-  for (const sprite of sprites) {
-    if (!displayNumbers.has(sprite.id)) displayNumbers.set(sprite.id, nextDisplayNumber++)
-  }
-  return { ...state, sprites, displayNumbers, nextDisplayNumber }
-}
-function mergeSprites(saved: readonly SpriteFrame[], added: readonly SpriteFrame[]): SpriteFrame[] {
-  const ids = new Set(saved.map((sprite) => sprite.id))
-  return [...saved, ...added.filter((sprite) => !ids.has(sprite.id))]
-}
-function initialState({
-  initialFrameSize = { width: '32', height: '32' },
-  initialData,
-  image,
-}: SpriteEditorProps): EditorState {
-  const grid = initialData?.settings?.grid
-  return storeSprites(
-    {
-      viewport: { zoom: 1, x: 0, y: 0 },
-      selectionMode: initialData?.settings?.mode ?? 'grid',
-      manualRegion: null,
-      isDrawing: false,
-      sprites: [],
-      displayNumbers: new Map(),
-      nextDisplayNumber: 1,
-      source: image ? { status: 'loading', file: null, requestId: 0 } : { status: 'idle' },
-      frameSizeInput: grid
-        ? { width: String(grid.cellWidth), height: String(grid.cellHeight) }
-        : { ...initialFrameSize },
-      gridOptionsInput: {
-        offsetX: String(grid?.offsetX ?? 0),
-        offsetY: String(grid?.offsetY ?? 0),
-        gapX: String(grid?.gapX ?? 0),
-        gapY: String(grid?.gapY ?? 0),
-      },
-      selectedIds: new Set(),
-      activeFrameId: null,
-      isExporting: false,
-    },
-    (initialData?.sprites ?? []).map((sprite) => ({ ...sprite, rect: { ...sprite.rect } })),
-  )
-}
-function gridSettings(state: EditorState): SpriteGridSettings {
-  return {
-    cellWidth: Number(state.frameSizeInput.width),
-    cellHeight: Number(state.frameSizeInput.height),
-    offsetX: Number(state.gridOptionsInput.offsetX),
-    offsetY: Number(state.gridOptionsInput.offsetY),
-    gapX: Number(state.gridOptionsInput.gapX),
-    gapY: Number(state.gridOptionsInput.gapY),
-  }
-}
-
 /** Владеет одной сессией источника; внешний src меняется через key контейнера. */
 export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
   const { image: externalImage, onSave, onCancel } = props
-  const [initial] = useState(() => initialState(props))
+  const [initial] = useState(() => createInitialEditorState(props))
   const [initialData] = useState(() =>
     props.initialData
       ? {
           sprites: initial.sprites,
           settings: {
             mode: initial.selectionMode,
-            ...(props.initialData.settings?.grid ? { grid: gridSettings(initial) } : {}),
+            ...(props.initialData.settings?.grid ? { grid: gridSettingsFromState(initial) } : {}),
           },
         }
       : null,
   )
-  const [state, setState] = useState<EditorState>(initial)
+  const [state, dispatch] = useReducer(editorSessionReducer, initial)
   const [request, setRequest] = useState<SourceRequest | null>(() =>
     externalImage
       ? {
@@ -138,10 +80,10 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
     const fail = (message = 'Unable to load image') => {
       release()
       if (!cancelled)
-        setState((previous) => ({
-          ...previous,
-          source: { status: 'error', error: { code: 'decode-failed', message } },
-        }))
+        dispatch({
+          type: 'sourceFailed',
+          error: { code: 'decode-failed', message },
+        })
     }
     image.onload = () => {
       if (cancelled) return
@@ -191,9 +133,10 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
           height: image.naturalHeight,
         },
       }
-      setState((previous) => {
-        const loaded: EditorState = { ...previous, source: { status: 'ready', sheet } }
-        return request.initialize ? storeSprites(loaded, hydrated) : loaded
+      dispatch({
+        type: 'sourceReady',
+        sheet,
+        sprites: request.initialize ? hydrated : null,
       })
     }
     image.onerror = () => fail()
@@ -219,7 +162,10 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
     }
   }, [request, initial, initialData])
 
-  const busy = state.isExporting || saving
+  const busy = isEditorBusy(state, saving)
+  const dispatchWhenIdle = (action: EditorSessionAction) => {
+    if (!busy) dispatch(action)
+  }
   const sheet = state.source.status === 'ready' ? state.source.sheet : null
   const grid = useMemo(
     () =>
@@ -280,27 +226,9 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
     return { ...normalized, id }
   }
   const changeSize = (key: 'width' | 'height', value: string) =>
-    setState((previous) =>
-      busy
-        ? previous
-        : {
-            ...previous,
-            frameSizeInput: { ...previous.frameSizeInput, [key]: value },
-            selectedIds: new Set(),
-            activeFrameId: null,
-          },
-    )
-  const changeSpacing = (key: keyof GridOptionsInput, value: string) =>
-    setState((previous) =>
-      busy
-        ? previous
-        : {
-            ...previous,
-            gridOptionsInput: { ...previous.gridOptionsInput, [key]: value },
-            selectedIds: new Set(),
-            activeFrameId: null,
-          },
-    )
+    dispatchWhenIdle({ type: 'frameSizeChanged', key, value })
+  const changeSpacing: SpriteEditorViewProps['settings']['onSpacingChange'] = (key, value) =>
+    dispatchWhenIdle({ type: 'spacingChanged', key, value })
   const saveDisabled =
     !sheet ||
     busy ||
@@ -333,7 +261,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
               sprites,
               settings: {
                 mode: state.selectionMode,
-                ...(!isManual ? { grid: gridSettings(state) } : {}),
+                ...(!isManual ? { grid: gridSettingsFromState(state) } : {}),
               },
             })
             await onSave(result)
@@ -380,36 +308,16 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
           id,
           `frame_${String(state.nextDisplayNumber).padStart(3, '0')}`,
         )
-        setState((previous) =>
-          previous.manualRegion
-            ? storeSprites({ ...previous, manualRegion: null }, [...previous.sprites, sprite])
-            : previous,
-        )
+        dispatch({ type: 'spriteAdded', sprite })
       },
-      onRename: (id, name) => {
-        if (!busy)
-          setState((previous) => ({
-            ...previous,
-            sprites: renameSprite(previous.sprites, id, name),
-          }))
-      },
+      onRename: (id, name) => dispatchWhenIdle({ type: 'spriteRenamed', id, name }),
       onRemove: (id) => {
         if (busy) return
-        setState((previous) => {
-          const removed = previous.sprites.find((sprite) => sprite.id === id)
-          const selectedIds = new Set(previous.selectedIds)
-          for (const frame of geometry)
-            if (removed && sameRect(frame, removed.rect)) selectedIds.delete(frame.id)
-          return {
-            ...previous,
-            sprites: removeSprite(previous.sprites, id),
-            selectedIds,
-            activeFrameId:
-              previous.activeFrameId !== null && selectedIds.has(previous.activeFrameId)
-                ? previous.activeFrameId
-                : null,
-          }
-        })
+        const removed = state.sprites.find((sprite) => sprite.id === id)
+        const selectedGridIds = removed
+          ? geometry.filter((frame) => sameRect(frame, removed.rect)).map((frame) => frame.id)
+          : []
+        dispatch({ type: 'spriteRemoved', id, selectedGridIds })
       },
     },
     uploader: {
@@ -424,18 +332,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
         const id = ++sequence.current
         gridIds.current.clear()
         usedIds.current = new Set(id === 1 ? initial.sprites.map((sprite) => sprite.id) : [])
-        setState((previous) => ({
-          ...previous,
-          viewport: { zoom: 1, x: 0, y: 0 },
-          source: { status: 'loading', file, requestId: id },
-          manualRegion: null,
-          sprites: [],
-          displayNumbers: new Map(),
-          nextDisplayNumber: 1,
-          isDrawing: false,
-          selectedIds: new Set(),
-          activeFrameId: null,
-        }))
+        dispatch({ type: 'sourceLoading', file, requestId: id })
         setRequest({ kind: 'file', file, id, initialize: id === 1 })
       },
     },
@@ -455,8 +352,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
       disabled: !sheet || (!isManual && grid?.status !== 'valid') || busy,
       viewport: state.viewport,
       isDrawing: state.isDrawing,
-      onViewportChange: (viewport) =>
-        setState((previous) => (previous.isDrawing ? previous : { ...previous, viewport })),
+      onViewportChange: (viewport) => dispatch({ type: 'viewportChanged', viewport }),
       mode: state.selectionMode,
       region: state.manualRegion,
       modeDisabled: !sheet || busy,
@@ -468,48 +364,21 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
               state.sprites,
               selectedFrames.map((frame) => normalizeGrid(frame, state.sprites)),
             )
-        setState((previous) =>
-          storeSprites(
-            {
-              ...previous,
-              selectionMode,
-              manualRegion: null,
-              isDrawing: false,
-              selectedIds: new Set(),
-              activeFrameId: null,
-            },
-            committed,
-          ),
-        )
+        dispatch({ type: 'modeChanged', mode: selectionMode, sprites: committed })
       },
       onRegionChange: (manualRegion) =>
-        setState((previous) => (busy ? previous : { ...previous, manualRegion })),
-      onDrawingChange: (isDrawing) => setState((previous) => ({ ...previous, isDrawing })),
+        dispatchWhenIdle({ type: 'regionChanged', region: manualRegion }),
+      onDrawingChange: (isDrawing) => dispatch({ type: 'drawingChanged', isDrawing }),
       onSelectAll: () =>
-        setState((previous) =>
-          busy
-            ? previous
-            : { ...previous, selectedIds: new Set(geometry.map((frame) => frame.id)) },
-        ),
-      onClearSelection: () =>
-        setState((previous) =>
-          busy ? previous : { ...previous, selectedIds: new Set(), activeFrameId: null },
-        ),
-      onFrameClick: (id) =>
-        setState((previous) => {
-          if (busy || !geometry.some((frame) => frame.id === id)) return previous
-          const selectedIds = new Set(previous.selectedIds)
-          if (selectedIds.has(id)) {
-            selectedIds.delete(id)
-            return {
-              ...previous,
-              selectedIds,
-              activeFrameId: previous.activeFrameId === id ? null : previous.activeFrameId,
-            }
-          }
-          selectedIds.add(id)
-          return { ...previous, selectedIds, activeFrameId: id }
+        dispatchWhenIdle({
+          type: 'selectionReplaced',
+          ids: geometry.map((frame) => frame.id),
         }),
+      onClearSelection: () => dispatchWhenIdle({ type: 'selectionCleared' }),
+      onFrameClick: (id) => {
+        if (!geometry.some((frame) => frame.id === id)) return
+        dispatchWhenIdle({ type: 'frameToggled', id })
+      },
     },
     preview: {
       sheet,
@@ -525,7 +394,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
       region: isManual ? state.manualRegion : null,
       regionExport: isManual,
       disabled: !sheet || (!isManual && grid?.status !== 'valid') || state.isDrawing || saving,
-      onExportingChange: (isExporting) => setState((previous) => ({ ...previous, isExporting })),
+      onExportingChange: (isExporting) => dispatch({ type: 'exportChanged', isExporting }),
     },
   }
 }

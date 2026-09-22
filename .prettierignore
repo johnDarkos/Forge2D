@@ -8,6 +8,7 @@ dist-ssr/
 coverage/
 playwright-report/
 test-results/
+**/worktrees/**
 *.tsbuildinfo
 pnpm-lock.yaml
 .env

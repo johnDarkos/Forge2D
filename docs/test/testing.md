@@ -6,8 +6,9 @@
 
 ## Текущее состояние
 
-Актуальный полный прогон после FEAT-002: **173 Vitest и 17 Playwright**,
-все проверки проходят. Числа ниже для MVP и интеграции отражают историю этапов.
+Актуальный полный прогон после рефакторинга состояния редактора: **188 Vitest и
+17 Playwright**, все проверки проходят. Числа ниже для MVP и интеграции отражают
+историю этапов.
 
 Тесты написаны до реализации MVP; сейчас основной сценарий реализован. Зафиксированный первый прогон содержит
 48 тестов: 3 проверки тестовой инфраструктуры проходят, 45 проверок приложения
@@ -31,6 +32,7 @@
 | `pnpm exec vitest run src/test/mvp/export.test.ts`  | Нарезка и кодирование                        |
 | `pnpm exec vitest run src/test/mvp/editor.test.tsx` | Сценарии через интерфейс                     |
 | `pnpm exec vitest run src/test/asset`               | Forge2D Project/Asset и adapter              |
+| `pnpm exec vitest run src/test/editor-session`      | Чистые переходы состояния редактора          |
 | `pnpm exec vitest run -t 'CSS-scaled canvas'`       | Выбор теста по части названия                |
 | `pnpm typecheck`                                    | Проверка TypeScript приложения и тестов      |
 | `pnpm lint`                                         | Проверка Oxlint, включая правила Vitest      |
@@ -416,3 +418,14 @@ frame ID, новое имя и чтение состояния именно из
 pnpm exec vitest run src/test/asset
 pnpm exec playwright test tests/browser/assets.spec.ts
 ```
+
+## Состояние сессии редактора
+
+`src/test/editor-session/session.test.ts` напрямую проверяет reducer без DOM:
+инициализацию и копирование initialData, сброс выбора при правке сетки, выбор и
+active frame, добавление/rename/remove с устойчивыми номерами, смену источника и
+режима, блокировку viewport во время жеста и единое правило busy. Интеграционные
+тесты редактора продолжают проверять связь reducer с UI, загрузкой и callbacks.
+
+Служебные каталоги `worktrees` исключены из Vitest и форматирования: обычные
+команды проекта не запускают дубликаты тестов из другой checkout-копии.
