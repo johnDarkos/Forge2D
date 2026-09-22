@@ -1,9 +1,7 @@
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-
-const fixture = (name: string) => resolve('src/test/fixtures', name)
+import { browserSheets, comparePngCrop, fixture } from './support'
 
 async function configure(page: Page, width: string, height: string) {
   await page.getByRole('spinbutton', { name: 'Frame width' }).fill(width)
@@ -22,52 +20,9 @@ async function clickSource(page: Page, x: number, y: number) {
   })
 }
 
-// Independent pixel oracle: decode source and exported PNG in the browser, without the app's crop utility.
-async function compareCrop(
-  page: Page,
-  source: Buffer,
-  output: Buffer,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-) {
-  return page.evaluate(
-    async (data) => {
-      async function decode(base64: string) {
-        const image = new Image()
-        image.src = `data:image/png;base64,${base64}`
-        await image.decode()
-        const canvas = document.createElement('canvas')
-        canvas.width = image.naturalWidth
-        canvas.height = image.naturalHeight
-        const context = canvas.getContext('2d')!
-        context.drawImage(image, 0, 0)
-        return { context, width: canvas.width, height: canvas.height }
-      }
-      const original = await decode(data.source)
-      const exported = await decode(data.output)
-      const expected = original.context.getImageData(data.x, data.y, data.width, data.height).data
-      const actual = exported.context.getImageData(0, 0, data.width, data.height).data
-      let differences = 0
-      for (let index = 0; index < expected.length; index++)
-        if (actual[index] !== expected[index]) differences++
-      return {
-        width: exported.width,
-        height: exported.height,
-        differences,
-        firstPixel: Array.from(actual.slice(0, 4)),
-      }
-    },
-    { source: source.toString('base64'), output: output.toString('base64'), x, y, width, height },
-  )
-}
-
 for (const example of [
   {
-    name: 'player.png',
-    width: 256,
-    height: 128,
+    ...browserSheets.player,
     frameWidth: 32,
     frameHeight: 32,
     columns: 8,
@@ -79,9 +34,7 @@ for (const example of [
   },
   // test.png has no declared cell size: 32×32 is an explicit test grid, not automatic detection.
   {
-    name: 'test.png',
-    width: 1774,
-    height: 887,
+    ...browserSheets.test,
     frameWidth: 32,
     frameHeight: 32,
     columns: 55,
@@ -110,15 +63,12 @@ for (const example of [
       .getByLabel('Frame preview')
       .evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL('image/png').split(',')[1])
     const source = await readFile(fixture(example.name))
-    const previewResult = await compareCrop(
-      page,
-      source,
-      Buffer.from(preview, 'base64'),
-      example.x,
-      example.y,
-      32,
-      32,
-    )
+    const previewResult = await comparePngCrop(page, source, Buffer.from(preview, 'base64'), {
+      x: example.x,
+      y: example.y,
+      width: 32,
+      height: 32,
+    })
     expect(previewResult.differences).toBe(0)
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export selected' }).click()
@@ -128,19 +78,15 @@ for (const example of [
     )
     const path = await download.path()
     if (!path) throw new Error('PNG download was not saved')
-    const result = await compareCrop(
-      page,
-      source,
-      await readFile(path),
-      example.x,
-      example.y,
-      32,
-      32,
-    )
+    const result = await comparePngCrop(page, source, await readFile(path), {
+      x: example.x,
+      y: example.y,
+      width: 32,
+      height: 32,
+    })
     expect(result).toMatchObject({ width: 32, height: 32, differences: 0 })
     if (example.name === 'player.png') expect(result.firstPixel[3]).toBe(0)
     expect(errors).toEqual([])
-    await page.screenshot({ path: `test-results/${example.name}-editor.png`, fullPage: true })
   })
 }
 
@@ -163,15 +109,12 @@ test('multiple PNG downloads, keyboard selection and replacement at 1024px', asy
   for (const [index, download] of downloads.entries()) {
     const path = await download.path()
     if (!path) throw new Error('Download missing')
-    const result = await compareCrop(
-      page,
-      source,
-      await readFile(path),
-      index === 0 ? 0 : 64,
-      index === 0 ? 0 : 32,
-      32,
-      32,
-    )
+    const result = await comparePngCrop(page, source, await readFile(path), {
+      x: index === 0 ? 0 : 64,
+      y: index === 0 ? 0 : 32,
+      width: 32,
+      height: 32,
+    })
     expect(result.differences).toBe(0)
   }
   await page.getByLabel('Sprite sheet', { exact: true }).focus()

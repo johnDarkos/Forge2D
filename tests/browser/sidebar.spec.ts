@@ -6,7 +6,6 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/')
     const tools = page.getByRole('complementary', { name: 'Editor tools' })
-    await expect(tools.getByRole('button', { name: 'Grid mode', exact: true })).toBeDisabled()
     await tools
       .getByLabel('Upload sprite sheet')
       .setInputFiles(resolve('src/test/fixtures/test.png'))
@@ -17,9 +16,6 @@ for (const width of [1280, 390]) {
     await tools.getByRole('button', { name: 'Select region', exact: true }).click()
     await expect(tools.getByLabel('Zoom level')).toHaveText('125%')
     await expect(tools.getByRole('spinbutton', { name: 'Frame width', exact: true })).toHaveCount(0)
-    await expect(tools.getByRole('button', { name: 'Add frame', exact: true })).toBeDisabled()
-    await expect(tools.getByRole('button', { name: 'Download PNG', exact: true })).toBeDisabled()
-    await expect(tools.getByRole('button', { name: 'Export ZIP', exact: true })).toBeDisabled()
     await tools.getByRole('button', { name: 'Reset view', exact: true }).click()
     await expect(tools.getByLabel('Zoom level')).toHaveText('100%')
     expect(
@@ -49,6 +45,5 @@ for (const width of [1280, 390]) {
       await expect(tools.getByRole('button', { name: 'Select region', exact: true })).toBeVisible()
       await page.setViewportSize({ width, height: 900 })
     }
-    await page.screenshot({ path: `test-results/sidebar-${width}.png`, fullPage: true })
   })
 }

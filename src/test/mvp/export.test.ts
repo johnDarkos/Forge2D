@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { exportFrame } from '@/features/export-sprites'
 import { frame10 } from '../fixtures/sheets'
 import { installBrowser } from './browser'
-import { getExportFrame } from './contracts'
 
 let browser: ReturnType<typeof installBrowser>
 beforeEach(() => {
@@ -14,7 +14,6 @@ afterEach(() => {
 
 describe('FR-15–16: exact crop and PNG encoding', () => {
   test('crops frame 10 from (64,32), at native 32×32 resolution', async () => {
-    const exportFrame = await getExportFrame()
     const image = document.createElement('img')
     const blob = await exportFrame(image, frame10)
     expect(blob).toBe(browser.png)
@@ -30,7 +29,6 @@ describe('FR-15–16: exact crop and PNG encoding', () => {
   })
 
   test('preserves non-square crop dimensions and source coordinates', async () => {
-    const exportFrame = await getExportFrame()
     const image = document.createElement('img')
     await exportFrame(image, { ...frame10, x: 96, y: 20, width: 48, height: 20 })
     const entry = [...browser.contexts].find(
@@ -42,7 +40,6 @@ describe('FR-15–16: exact crop and PNG encoding', () => {
   })
 
   test('rejects null toBlob result instead of downloading an empty file', async () => {
-    const exportFrame = await getExportFrame()
     browser.toBlob.mockImplementation((callback) => callback(null))
     await expect(exportFrame(document.createElement('img'), frame10)).rejects.toMatchObject({
       name: 'SpriteExportError',
@@ -53,7 +50,6 @@ describe('FR-15–16: exact crop and PNG encoding', () => {
   })
 
   test('rejects unavailable 2D context', async () => {
-    const exportFrame = await getExportFrame()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     await expect(exportFrame(document.createElement('img'), frame10)).rejects.toMatchObject({
       name: 'SpriteExportError',

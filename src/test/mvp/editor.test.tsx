@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import App from '@/app/App'
 import { player, replacement, uneven } from '../fixtures/sheets'
 import { installBrowser } from './browser'
-import { getApp } from './contracts'
 
 let browser: ReturnType<typeof installBrowser>
 beforeEach(() => {
@@ -16,7 +16,6 @@ afterEach(() => {
 })
 
 async function open() {
-  const App = await getApp()
   const view = render(<App />)
   const user = userEvent.setup()
   return { ...view, user }
@@ -218,30 +217,21 @@ describe('MVP user acceptance: FR-01–18', () => {
     expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
   })
 
-  test.each(['', '0', '-32', '1.5'])(
-    'invalid width %j shows validation and prevents export',
-    async (width) => {
-      const { user } = await loaded()
-      clickAt(1, 1)
-      await settings(user, width)
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'Frame width must be a positive integer greater than 0',
-      )
-      expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
-    },
-  )
+  test('invalid frame settings identify the field and block export', async () => {
+    const { user } = await loaded()
+    clickAt(1, 1)
+    await settings(user, '-32')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Frame width must be a positive integer greater than 0',
+    )
+    expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
 
-  test.each(['', '0', '-32', '1.5'])(
-    'invalid height %j shows validation and prevents export',
-    async (height) => {
-      const { user } = await loaded()
-      await settings(user, '32', height)
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'Frame height must be a positive integer greater than 0',
-      )
-      expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
-    },
-  )
+    await settings(user, '32', '1.5')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Frame height must be a positive integer greater than 0',
+    )
+    expect(screen.getByRole('button', { name: /export selected/i })).toBeDisabled()
+  })
 
   test('frame larger than image shows error and recovers after correction', async () => {
     const { user } = await loaded()

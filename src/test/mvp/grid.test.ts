@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'vitest'
-import { getGenerateFrames } from './contracts'
+import { generateFrames } from '@/entities/sprite'
 import { frame10, lastFrame } from '../fixtures/sheets'
 
 describe('FR-06–09: grid and frame coordinates', () => {
   test('256×128 / 32×32 produces all 32 frames in row-major order', async () => {
-    const generate = await getGenerateFrames()
-    const frames = generate(256, 128, 32, 32)
+    const frames = generateFrames(256, 128, 32, 32)
     expect(frames).toHaveLength(32)
     expect(frames[0]).toEqual({
       id: 'grid-0-0-32-32',
@@ -25,8 +24,7 @@ describe('FR-06–09: grid and frame coordinates', () => {
   })
 
   test('100×100 ignores incomplete strips of 4 pixels', async () => {
-    const generate = await getGenerateFrames()
-    const frames = generate(100, 100, 32, 32)
+    const frames = generateFrames(100, 100, 32, 32)
     expect(frames).toHaveLength(9)
     expect(frames[8]).toEqual({
       id: 'grid-64-64-32-32',
@@ -42,8 +40,7 @@ describe('FR-06–09: grid and frame coordinates', () => {
   })
 
   test('non-square frames do not swap width and height', async () => {
-    const generate = await getGenerateFrames()
-    expect(generate(96, 40, 32, 20)).toEqual([
+    expect(generateFrames(96, 40, 32, 20)).toEqual([
       {
         id: 'grid-0-0-32-20',
         displayNumber: 1,
@@ -120,23 +117,24 @@ describe('FR-06–09: grid and frame coordinates', () => {
     [16, 64, 32, 32, 0],
     [4096, 4096, 32, 32, 16384],
   ])('image %i×%i, frame %i×%i gives %i complete frames', async (w, h, fw, fh, count) => {
-    expect((await getGenerateFrames())(w, h, fw, fh)).toHaveLength(count)
+    expect(generateFrames(w, h, fw, fh)).toHaveLength(count)
   })
 
   test.each([0, -32, 1.5, NaN, Infinity])('rejects invalid frame dimension %s', async (value) => {
-    const generate = await getGenerateFrames()
     const message = 'Image and frame dimensions must be positive integers'
-    for (const run of [() => generate(256, 128, value, 32), () => generate(256, 128, 32, value)]) {
+    for (const run of [
+      () => generateFrames(256, 128, value, 32),
+      () => generateFrames(256, 128, 32, value),
+    ]) {
       expect(run).toThrow(RangeError)
       expect(run).toThrow(message)
     }
   })
 
   test('regeneration returns fresh unselected objects', async () => {
-    const generate = await getGenerateFrames()
-    const first = generate(64, 32, 32, 32)
+    const first = generateFrames(64, 32, 32, 32)
     first[0].selected = true
-    const second = generate(64, 32, 32, 32)
+    const second = generateFrames(64, 32, 32, 32)
     expect(second[0].selected).toBe(false)
     expect(second[0]).not.toBe(first[0])
   })

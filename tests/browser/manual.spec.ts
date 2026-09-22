@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { browserSheets, comparePngCrop, fixture } from './support'
 
 for (const transformed of [false, true]) {
   test(`manual region exports exact pixels${transformed ? ' after zoom/pan and reverse drag' : ''}`, async ({
     page,
   }) => {
     await page.goto('/')
-    const sourcePath = resolve('src/test/fixtures/test.png')
+    const sheet = browserSheets.test
+    const sourcePath = fixture(sheet.name)
     await page.getByLabel('Upload sprite sheet').setInputFiles(sourcePath)
     await expect(page.getByText('Frames: 1485', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Select region', exact: true }).click()
@@ -29,8 +30,8 @@ for (const transformed of [false, true]) {
       [204, 52],
       [310, 166],
     ].map(([x, y]) => ({
-      x: Math.round(box.x + (x * box.width) / 1774),
-      y: Math.round(box.y + (y * box.height) / 887),
+      x: Math.round(box.x + (x * box.width) / sheet.width),
+      y: Math.round(box.y + (y * box.height) / sheet.height),
     }))
     const [from, to] = transformed ? [points[1], points[0]] : points
     await page.mouse.move(from.x, from.y)
@@ -38,10 +39,10 @@ for (const transformed of [false, true]) {
     await page.mouse.move(to.x, to.y, { steps: 8 })
     await expect(page.getByRole('button', { name: 'Download PNG' })).toBeDisabled()
     await page.mouse.up()
-    const x = Math.floor(((Math.min(from.x, to.x) - box.x) * 1774) / box.width)
-    const y = Math.floor(((Math.min(from.y, to.y) - box.y) * 887) / box.height)
-    const width = Math.ceil(((Math.max(from.x, to.x) - box.x) * 1774) / box.width) - x
-    const height = Math.ceil(((Math.max(from.y, to.y) - box.y) * 887) / box.height) - y
+    const x = Math.floor(((Math.min(from.x, to.x) - box.x) * sheet.width) / box.width)
+    const y = Math.floor(((Math.min(from.y, to.y) - box.y) * sheet.height) / box.height)
+    const width = Math.ceil(((Math.max(from.x, to.x) - box.x) * sheet.width) / box.width) - x
+    const height = Math.ceil(((Math.max(from.y, to.y) - box.y) * sheet.height) / box.height) - y
     const preview = page.getByLabel('Frame preview')
     await expect(preview).toHaveAttribute('width', String(width))
     await expect(preview).toHaveAttribute('height', String(height))
@@ -51,44 +52,13 @@ for (const transformed of [false, true]) {
     expect(download.suggestedFilename()).toBe('selection.png')
     const path = await download.path()
     if (!path) throw new Error('Manual crop download missing')
-    const result = await page.evaluate(
-      async ({ source, output, x, y, width, height }) => {
-        async function decode(base64: string) {
-          const image = new Image()
-          image.src = `data:image/png;base64,${base64}`
-          await image.decode()
-          const canvas = document.createElement('canvas')
-          canvas.width = image.naturalWidth
-          canvas.height = image.naturalHeight
-          const ctx = canvas.getContext('2d')!
-          ctx.drawImage(image, 0, 0)
-          return { canvas, ctx }
-        }
-        const original = await decode(source)
-        const outputImage = await decode(output)
-        const expected = original.ctx.getImageData(x, y, width, height).data
-        const actual = outputImage.ctx.getImageData(0, 0, width, height).data
-        return {
-          width: outputImage.canvas.width,
-          height: outputImage.canvas.height,
-          matches: expected.every((value, index) => value === actual[index]),
-          hasVisiblePixels: actual.some((value, index) => index % 4 === 3 && value > 0),
-        }
-      },
-      {
-        source: (await readFile(sourcePath)).toString('base64'),
-        output: (await readFile(path)).toString('base64'),
-        x,
-        y,
-        width,
-        height,
-      },
-    )
-    expect(result).toEqual({ width, height, matches: true, hasVisiblePixels: true })
-    await page.screenshot({
-      path: `test-results/manual-${transformed ? 'zoomed' : 'normal'}.png`,
-      fullPage: true,
+    const result = await comparePngCrop(page, await readFile(sourcePath), await readFile(path), {
+      x,
+      y,
+      width,
+      height,
     })
+    expect(result).toMatchObject({ width, height, differences: 0, hasVisiblePixels: true })
   })
 }
 
@@ -96,9 +66,7 @@ test('releasing outside image clips crop and Escape preserves previous region', 
   page,
 }) => {
   await page.goto('/')
-  await page
-    .getByLabel('Upload sprite sheet')
-    .setInputFiles(resolve('src/test/fixtures/player.png'))
+  await page.getByLabel('Upload sprite sheet').setInputFiles(fixture('player.png'))
   await expect(page.getByText('Frames: 32', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Select region', exact: true }).click()
   const canvas = page.getByLabel('Sprite sheet', { exact: true })

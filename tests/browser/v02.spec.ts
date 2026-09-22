@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { readZip } from '../../src/test/v02/readZip'
+import { browserSheets, comparePngCrop, fixture } from './support'
 
 test('zoom and pan move the view, preserve selection and reset without changing source pixels', async ({
   page,
 }) => {
   await page.goto('/')
-  await page.getByLabel('Upload sprite sheet').setInputFiles(resolve('src/test/fixtures/test.png'))
+  const sheet = browserSheets.test
+  await page.getByLabel('Upload sprite sheet').setInputFiles(fixture(sheet.name))
   await expect(page.getByText('Frames: 1485', { exact: true })).toBeVisible()
   const zoomIn = page.getByRole('button', { name: 'Zoom in', exact: true })
   await expect(zoomIn).toBeVisible()
@@ -32,8 +33,8 @@ test('zoom and pan move the view, preserve selection and reset without changing 
   const moved = (await canvas.boundingBox())!
   const visibleX = region!.x + region!.width / 2
   const visibleY = region!.y + Math.min(100, region!.height / 2)
-  const sourceX = ((visibleX - moved.x) * 1774) / moved.width
-  const sourceY = ((visibleY - moved.y) * 887) / moved.height
+  const sourceX = ((visibleX - moved.x) * sheet.width) / moved.width
+  const sourceY = ((visibleY - moved.y) * sheet.height) / moved.height
   const column = Math.floor(sourceX / 32)
   const row = Math.floor(sourceY / 32)
   expect(column).toBeLessThan(55)
@@ -55,14 +56,15 @@ test('zoom and pan move the view, preserve selection and reset without changing 
   await expect(page.getByText('Selected frames: 1', { exact: true })).toBeVisible()
   expect(
     await canvas.evaluate((element: HTMLCanvasElement) => [element.width, element.height]),
-  ).toEqual([1774, 887])
+  ).toEqual([sheet.width, sheet.height])
 })
 
 test('ZIP download contains exact PNG crops, preserves transparency and excludes offset/gap pixels', async ({
   page,
 }) => {
   await page.goto('/')
-  const sourcePath = resolve('src/test/fixtures/spaced.png')
+  const sheet = browserSheets.spaced
+  const sourcePath = fixture(sheet.name)
   await page.getByLabel('Upload sprite sheet').setInputFiles(sourcePath)
   for (const [name, value] of [
     ['Offset X', '10'],
@@ -81,7 +83,9 @@ test('ZIP download contains exact PNG crops, preserves transparency and excludes
     [50, 50],
     [11, 9],
   ]) {
-    await canvas.click({ position: { x: (x * box.width) / 114, y: (y * box.height) / 78 } })
+    await canvas.click({
+      position: { x: (x * box.width) / sheet.width, y: (y * box.height) / sheet.height },
+    })
   }
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export ZIP', exact: true }).click()
@@ -91,37 +95,22 @@ test('ZIP download contains exact PNG crops, preserves transparency and excludes
   if (!path) throw new Error('ZIP download missing')
   const entries = readZip(await readFile(path))
   expect([...entries.keys()]).toEqual(['frame_001.png', 'frame_005.png'])
-  const source = (await readFile(sourcePath)).toString('base64')
+  const source = await readFile(sourcePath)
   for (const [name, x, y] of [
     ['frame_001.png', 10, 8],
     ['frame_005.png', 46, 46],
   ] as const) {
-    const output = Buffer.from(entries.get(name)!).toString('base64')
-    const result = await page.evaluate(
-      async ({ source, output, x, y }) => {
-        async function decode(base64: string) {
-          const image = new Image()
-          image.src = `data:image/png;base64,${base64}`
-          await image.decode()
-          const canvas = document.createElement('canvas')
-          canvas.width = image.naturalWidth
-          canvas.height = image.naturalHeight
-          const context = canvas.getContext('2d')!
-          context.drawImage(image, 0, 0)
-          return { canvas, context }
-        }
-        const original = await decode(source)
-        const png = await decode(output)
-        const expected = original.context.getImageData(x, y, 32, 32).data
-        const actual = png.context.getImageData(0, 0, 32, 32).data
-        return {
-          size: [png.canvas.width, png.canvas.height],
-          same: expected.every((value, index) => value === actual[index]),
-          alpha: actual[3],
-        }
-      },
-      { source, output, x, y },
-    )
-    expect(result).toEqual({ size: [32, 32], same: true, alpha: 0 })
+    const result = await comparePngCrop(page, source, entries.get(name)!, {
+      x,
+      y,
+      width: 32,
+      height: 32,
+    })
+    expect(result).toMatchObject({
+      width: 32,
+      height: 32,
+      differences: 0,
+      firstPixel: [0, 0, 0, 0],
+    })
   }
 })

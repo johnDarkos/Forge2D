@@ -1,24 +1,5 @@
 import { expect, test } from 'vitest'
-import * as domain from '@/entities/sprite/domain'
-
-type Rect = { x: number; y: number; width: number; height: number }
-function normalize(
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  width: number,
-  height: number,
-) {
-  const fn = (domain as unknown as Record<string, unknown>).selectionRect
-  if (typeof fn !== 'function') throw new Error('Manual selection not implemented: selectionRect')
-  return (
-    fn as (
-      start: { x: number; y: number },
-      end: { x: number; y: number },
-      width: number,
-      height: number,
-    ) => Rect | null
-  )(start, end, width, height)
-}
+import { selectionRect } from '@/entities/sprite/domain'
 
 test.each([
   [
@@ -50,5 +31,5 @@ test.each([
   [{ x: 10, y: 10 }, { x: 10, y: 30 }, null],
   [{ x: 110, y: 110 }, { x: 150, y: 120 }, null],
 ] as const)('normalizes drag into bounded pixel crop %#', (start, end, result) => {
-  expect(normalize(start, end, 100, 100)).toEqual(result)
+  expect(selectionRect(start, end, 100, 100)).toEqual(result)
 })

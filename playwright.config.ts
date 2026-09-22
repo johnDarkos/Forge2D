@@ -13,6 +13,7 @@ export default defineConfig({
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
       : {},
+    screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
   webServer: {

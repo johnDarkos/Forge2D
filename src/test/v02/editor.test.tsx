@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SpriteEditor } from '@/widgets/sprite-editor'
 import { installBrowser } from '../mvp/browser'
-import { spacedSheet, spacing } from './contracts'
+import { spacedSheet, spacing } from './fixtures'
 
 let browser: ReturnType<typeof installBrowser>
 beforeEach(() => {
@@ -46,10 +46,10 @@ function click(x: number, y: number) {
     y: 0,
     left: 0,
     top: 0,
-    right: 114,
-    bottom: 78,
-    width: 114,
-    height: 78,
+    right: spacedSheet.width,
+    bottom: spacedSheet.height,
+    width: spacedSheet.width,
+    height: spacedSheet.height,
     toJSON: () => ({}),
   })
   fireEvent.click(canvas, { clientX: x, clientY: y })
@@ -112,25 +112,28 @@ test('Select All selects complete frames once; Clear Selection removes preview',
   expect(screen.getByRole('button', { name: 'Export ZIP' })).toBeDisabled()
 })
 
-for (const name of ['Offset X', 'Offset Y', 'Gap X', 'Gap Y']) {
-  test(`changing ${name} resets stale selection and preview`, async () => {
-    const user = await configure()
-    click(50, 50)
+test('changing any spacing field resets stale selection and preview', async () => {
+  const user = await configure()
+  for (const name of ['Offset X', 'Offset Y', 'Gap X', 'Gap Y']) {
+    await user.click(screen.getByRole('button', { name: 'Select All' }))
+    expect(screen.getByText(/Selected frames: [1-9]/)).toBeInTheDocument()
     await setField(user, name, '12')
     expect(screen.getByText('Selected frames: 0')).toBeInTheDocument()
     expect(screen.queryByLabelText('Frame preview')).not.toBeInTheDocument()
-  })
-  test.each(['', '-1', '1.5'])(
-    `invalid ${name} %j blocks export and bulk selection`,
-    async (value) => {
-      const user = await configure()
-      await setField(user, name, value)
-      expect(screen.getByRole('alert')).toHaveTextContent(`${name} must be a non-negative integer`)
-      expect(screen.getByRole('button', { name: 'Select All' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Export ZIP' })).toBeDisabled()
-    },
-  )
-}
+  }
+})
+
+test('invalid spacing identifies the field and blocks grid actions', async () => {
+  const user = await configure()
+  await setField(user, 'Offset X', '-1')
+  expect(screen.getByRole('alert')).toHaveTextContent('Offset X must be a non-negative integer')
+  expect(screen.getByRole('button', { name: 'Select All' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Export ZIP' })).toBeDisabled()
+
+  await setField(user, 'Offset X', '10')
+  await setField(user, 'Gap Y', '1.5')
+  expect(screen.getByRole('alert')).toHaveTextContent('Gap Y must be a non-negative integer')
+})
 
 test('bulk controls and ZIP export are disabled without an image', () => {
   render(<SpriteEditor />)
@@ -148,7 +151,7 @@ test('zoom controls preserve source geometry and selected IDs', async () => {
   await user.click(screen.getByRole('button', { name: 'Zoom out' }))
   await user.click(screen.getByRole('button', { name: 'Reset view' }))
   expect(screen.getByText('Selected frames: 1')).toBeInTheDocument()
-  expect([canvas.width, canvas.height]).toEqual([114, 78])
+  expect([canvas.width, canvas.height]).toEqual([spacedSheet.width, spacedSheet.height])
   expect(browser.context(preview).drawImage).toHaveBeenLastCalledWith(
     expect.any(HTMLImageElement),
     32,

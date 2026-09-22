@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { exportFramesZip } from '@/features/export-sprites'
 import { installBrowser } from '../mvp/browser'
-import { getExportZip, spacedFrames } from './contracts'
+import { spacedFrames } from './fixtures'
 import { blobBytes, readZip } from './readZip'
 
 let browser: ReturnType<typeof installBrowser>
@@ -13,13 +14,12 @@ afterEach(() => {
 })
 
 test('ZIP contains only requested frames, original IDs, sorted names and exact encoded bytes', async () => {
-  const exportZip = getExportZip()
   browser.toBlob.mockImplementation(function (this: HTMLCanvasElement, callback: BlobCallback) {
     const [, x, y] = browser.context(this).drawImage.mock.calls[0]
     callback(new Blob([`PNG bytes for crop ${x},${y}`], { type: 'image/png' }))
   })
   const input = [spacedFrames[4], spacedFrames[0]]
-  const zip = await exportZip(document.createElement('img'), input)
+  const zip = await exportFramesZip(document.createElement('img'), input)
   expect(zip.type).toBe('application/zip')
   const entries = readZip(await blobBytes(zip))
   expect([...entries.keys()]).toEqual(['frame_001.png', 'frame_005.png'])
@@ -31,26 +31,25 @@ test('ZIP contains only requested frames, original IDs, sorted names and exact e
 })
 
 test('empty selection rejects without encoding or downloads', async () => {
-  const exportZip = getExportZip()
-  await expect(exportZip(document.createElement('img'), [])).rejects.toThrow(/select|empty|frame/i)
+  await expect(exportFramesZip(document.createElement('img'), [])).rejects.toThrow(
+    /select|empty|frame/i,
+  )
   expect(browser.toBlob).not.toHaveBeenCalled()
 })
 
 test('PNG encoding failure rejects the entire archive', async () => {
-  const exportZip = getExportZip()
   browser.toBlob
     .mockImplementationOnce((callback) => callback(browser.png))
     .mockImplementationOnce((callback) => callback(null))
   await expect(
-    exportZip(document.createElement('img'), [spacedFrames[0], spacedFrames[4]]),
+    exportFramesZip(document.createElement('img'), [spacedFrames[0], spacedFrames[4]]),
   ).rejects.toThrow(/encode|png|export/i)
   expect(browser.downloads).toHaveLength(0)
 })
 
 test('missing Canvas context rejects instead of producing an empty archive', async () => {
-  const exportZip = getExportZip()
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
-  await expect(exportZip(document.createElement('img'), [spacedFrames[0]])).rejects.toThrow(
+  await expect(exportFramesZip(document.createElement('img'), [spacedFrames[0]])).rejects.toThrow(
     /canvas|context/i,
   )
   expect(browser.toBlob).not.toHaveBeenCalled()
