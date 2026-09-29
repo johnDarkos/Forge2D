@@ -1,0 +1,295 @@
+.forge-editor {
+  min-height: 100vh;
+  background: #0b1018;
+  color: #e6edf7;
+  font:
+    14px/1.4 Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.forge-editor :where(*) {
+  box-sizing: border-box;
+}
+
+.forge-editor button,
+.forge-editor input {
+  font: inherit;
+}
+
+.forge-editor__toolbar {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #273245;
+  background: #111925;
+}
+
+.forge-editor__toolbar div {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.forge-editor__toolbar strong {
+  color: #70b7ff;
+  font-size: 17px;
+}
+
+.forge-editor__toolbar span,
+.forge-editor__panel-meta,
+.forge-editor__panel-heading span,
+.forge-editor__asset small {
+  color: #91a0b5;
+}
+
+.forge-editor__workspace {
+  min-height: calc(100vh - 52px);
+  display: grid;
+  grid-template:
+    'hierarchy scene inspector' minmax(420px, 1fr)
+    'assets assets assets' minmax(170px, 28vh) /
+    minmax(190px, 240px) minmax(360px, 1fr) minmax(230px, 300px);
+}
+
+.forge-editor__panel {
+  min-width: 0;
+  overflow: auto;
+  border-color: #273245;
+  background: #111925;
+}
+
+.forge-editor__panel h2 {
+  margin: 0;
+  color: #b8c5d8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.forge-editor__hierarchy {
+  grid-area: hierarchy;
+  padding: 14px 0;
+  border-right: 1px solid #273245;
+}
+
+.forge-editor__hierarchy h2,
+.forge-editor__hierarchy .forge-editor__panel-meta,
+.forge-editor__inspector > h2,
+.forge-editor__inspector > .forge-editor__panel-meta {
+  margin-inline: 14px;
+}
+
+.forge-editor__panel-meta {
+  margin-block: 6px 12px;
+  font-size: 12px;
+}
+
+.forge-editor__list {
+  display: grid;
+  gap: 2px;
+}
+
+.forge-editor__list-item,
+.forge-editor__asset {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.forge-editor__list-item {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 5px;
+  padding-inline-end: 10px;
+}
+
+.forge-editor__list-item:hover,
+.forge-editor__asset:hover {
+  background: #192537;
+}
+
+.forge-editor__list-item[aria-current='true'],
+.forge-editor__asset[aria-current='true'] {
+  background: #173b60;
+  color: #fff;
+}
+
+.forge-editor__scene {
+  grid-area: scene;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: #0d141f;
+}
+
+.forge-editor__panel-heading {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #273245;
+}
+
+.forge-editor__viewport {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  background-color: #111a27;
+  background-image:
+    linear-gradient(#1b283a 1px, transparent 1px),
+    linear-gradient(90deg, #1b283a 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.forge-editor__origin {
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid #36506e;
+  border-left: 1px solid #36506e;
+  pointer-events: none;
+}
+
+.forge-editor__scene-object {
+  position: absolute;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transform-origin: top left;
+}
+
+.forge-editor__scene-object img {
+  position: absolute;
+  max-width: none;
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+
+.forge-editor__scene-object[aria-current='true'] {
+  border-color: #ffd166;
+  box-shadow: 0 0 0 1px #0b1018;
+}
+
+.forge-editor__inspector {
+  grid-area: inspector;
+  padding: 14px;
+  border-left: 1px solid #273245;
+}
+
+.forge-editor__component {
+  display: grid;
+  gap: 9px;
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid #2d3a4e;
+  border-radius: 6px;
+  background: #0e1621;
+}
+
+.forge-editor__component legend {
+  padding: 0 6px;
+  color: #70b7ff;
+  font-weight: 650;
+}
+
+.forge-editor__field {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(70px, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #aebbd0;
+  font-size: 12px;
+}
+
+.forge-editor__field input[type='number'],
+.forge-editor__field input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #34445b;
+  border-radius: 4px;
+  outline: 0;
+  background: #111d2b;
+  color: #fff;
+}
+
+.forge-editor__field input:focus-visible {
+  border-color: #70b7ff;
+  box-shadow: 0 0 0 2px #1672bd55;
+}
+
+.forge-editor__field--boolean input {
+  justify-self: end;
+}
+
+.forge-editor__empty {
+  color: #91a0b5;
+}
+
+.forge-editor [role='alert'] {
+  color: #ff9e9e;
+}
+
+.forge-editor__assets {
+  grid-area: assets;
+  border-top: 1px solid #273245;
+}
+
+.forge-editor__asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.forge-editor__asset {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #2d3a4e;
+  border-radius: 6px;
+  background: #0e1621;
+}
+
+.forge-editor__asset-icon {
+  grid-row: 1 / 3;
+  color: #70b7ff;
+  font-size: 24px;
+  text-align: center;
+}
+
+.forge-editor__asset small {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 800px) {
+  .forge-editor__workspace {
+    grid-template:
+      'scene scene' minmax(360px, 55vh)
+      'hierarchy inspector' minmax(300px, auto)
+      'assets assets' minmax(170px, auto) /
+      minmax(170px, 1fr) minmax(210px, 1.3fr);
+  }
+
+  .forge-editor__hierarchy {
+    border-top: 1px solid #273245;
+  }
+}

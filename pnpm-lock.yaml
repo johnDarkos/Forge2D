@@ -109,6 +109,12 @@ importers:
 
   .:
     dependencies:
+      '@forge2d/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@forge2d/runtime':
+        specifier: workspace:*
+        version: link:packages/runtime
       fflate:
         specifier: ^0.8.3
         version: 0.8.3

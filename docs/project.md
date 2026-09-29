@@ -552,6 +552,48 @@ readonly GameObject[]
 v0.1 требует отдельного технического spike, а редактор и игра должны использовать один и
 тот же будущий adapter.
 
+### Forge Editor workspace
+
+Минимальный Forge Editor доступен в standalone-приложении по адресу `/#forge`. Обычный
+корневой URL продолжает открывать Sprite Editor, поэтому его embedding и браузерные
+сценарии остаются независимыми от движка.
+
+`src/features/edit-forge-scene` содержит чистую модель in-memory workspace. Источниками
+данных служат существующие `SceneDocument` и `Project`; при создании они повторно проходят
+валидацию своих domain-фабрик. Workspace хранит выбранные `GameObject` и asset, runtime-
+представление сцены и registry фабрик компонентов. Несуществующий ID превращается в
+`null`, поэтому UI не сохраняет устаревшую ссылку.
+
+Встроенные фабрики гидратируют два типа компонентов:
+
+- `Transform` читает `x`, `y`, `rotation`, `scaleX` и `scaleY`;
+- `SpriteRenderer` читает `assetId`, необязательный `frameId`, `opacity`, `visible` и
+  `order`.
+
+`assetId` может ссылаться прямо на `TextureAsset` или на `SpriteAsset`. Во втором случае
+`frameId` выбирает область исходной текстуры; без него используется первый кадр. Неизвестный
+тип компонента остаётся в `SceneDocument`, но не создаёт runtime-экземпляр, пока host не
+передаст его фабрику через `componentFactories`.
+
+Правка Inspector создаёт свежий runtime-снимок, вызывает `setInspectorFieldValue`, записывает
+проверенное значение в `ComponentData.properties` через `updateGameObject` и заново
+гидратирует runtime. Предыдущее состояние не мутирует. Scene panel получает визуальные
+объекты только через `Renderer` и `SpriteRenderCommand`, поэтому Editor не создаёт
+параллельную систему рендера.
+
+```text
+SceneDocument + Project + componentFactories
+  → ForgeEditorWorkspace
+  ├── Hierarchy → selectedObjectId
+  ├── Assets → selectedAssetId
+  ├── Inspector → Core @field API → новый SceneDocument
+  └── runtime GameObject[] → Renderer → Scene panel
+```
+
+UI расположен в `src/widgets/forge-editor` и состоит из синхронизированных Hierarchy,
+Scene, Inspector и Assets. Состояние пока живёт только в React-сессии; файловое сохранение
+и Play Mode в M0.5 не входят.
+
 ## Поток данных и состояние
 
 Данные идут вниз через props, пользовательские действия возвращаются через callbacks:
@@ -669,14 +711,14 @@ PNG кодируются через `canvas.toBlob('image/png')` без сгла
 
 ## Тестирование и CI
 
-Актуальный полный набор после M0.4:
+Актуальный полный набор после M0.5:
 
-- **279 Vitest** в 24 файлах;
-- **18 Playwright**;
-- statements: **95.08%**;
-- branches: **91.99%**;
-- functions: **97.44%**;
-- lines: **97.80%**.
+- **283 Vitest** в 26 файлах;
+- **19 Playwright**;
+- statements: **94.31%**;
+- branches: **90.11%**;
+- functions: **96.96%**;
+- lines: **97.69%**.
 
 Пороги `vitest.config.ts`:
 
@@ -754,7 +796,14 @@ TypeScript, Vitest с покрытием, build и Playwright. При ошибк
   - [x] Inspector-совместимые `Transform` и `SpriteRenderer`;
   - [x] backend-neutral Renderer API и immutable-команды;
   - [x] общий quality pipeline.
-- [ ] **M0.5 — Forge Editor:** минимальные Hierarchy, Scene, Inspector и Assets.
+- [x] **M0.5 — Forge Editor**
+  - [x] единый in-memory workspace на основе SceneDocument и Project;
+  - [x] гидратация Transform/SpriteRenderer и registry пользовательских компонентов;
+  - [x] синхронизированные Hierarchy, Scene, Inspector и Assets;
+  - [x] запись Inspector через Core API обратно в SceneDocument;
+  - [x] Scene panel поверх backend-neutral Renderer API;
+  - [x] unit, UI и браузерный сценарии;
+  - [x] общий quality pipeline.
 - [ ] **M0.6 — Living Scene:** сквозной сценарий `speed 220 → 350 → runtime`.
 - [ ] **M0.7 — Sprite Editor integration:** production Asset host flow после Milestone 0.
 
