@@ -104,6 +104,20 @@ describe('@field Inspector metadata', () => {
     expect(settings).toMatchObject({ speed: 220, currentHealth: 100, hidden: 'not exposed' })
   })
 
+  test('shows values the game code moved outside min and max instead of failing', () => {
+    const settings = new PlayerSettings()
+    settings.speed = 9999
+
+    expect(getInspectorFields(settings)).toMatchObject([
+      { key: 'speed', value: 9999, min: 0, max: 500 },
+      { key: 'displayName', value: 'Player' },
+      { key: 'aggressive', value: true },
+      { key: 'currentHealth', value: 100 },
+    ])
+    expectFieldError(() => setInspectorFieldValue(settings, 'speed', 501), 'invalid-field-value')
+    expect(settings.speed).toBe(9999)
+  })
+
   test('keeps values per instance and returns detached frozen Inspector snapshots', () => {
     const first = new PlayerSettings()
     const second = new PlayerSettings()

@@ -125,14 +125,21 @@ function readValue(component: Component, key: string) {
   return (component as unknown as Record<string, unknown>)[key]
 }
 
-function assertValue(metadata: RegisteredField, type: InspectorFieldType, value: unknown) {
+function assertConstraintsMatchType(metadata: RegisteredField, type: InspectorFieldType) {
+  if (type === 'number') return
+  if (metadata.min !== undefined || metadata.max !== undefined || metadata.step !== undefined)
+    fail('invalid-field-options', `Numeric constraints require a number field: ${metadata.key}`)
+}
+
+/**
+ * Проверяет значение, которое приходит из Inspector. Диапазон применяется только здесь:
+ * игровой код вправе вывести поле за min/max, и снимок обязан показать такое значение.
+ */
+function assertIncomingValue(metadata: RegisteredField, type: InspectorFieldType, value: unknown) {
   if (fieldType(value, metadata.key) !== type)
     fail('invalid-field-value', `Inspector field ${metadata.key} must remain a ${type}`)
-  if (type !== 'number') {
-    if (metadata.min !== undefined || metadata.max !== undefined || metadata.step !== undefined)
-      fail('invalid-field-options', `Numeric constraints require a number field: ${metadata.key}`)
-    return
-  }
+  if (type !== 'number') return
+
   const number = value as number
   if (metadata.min !== undefined && number < metadata.min)
     fail('invalid-field-value', `Inspector field ${metadata.key} is below min ${metadata.min}`)
@@ -144,7 +151,7 @@ export function getInspectorFields(component: Component): readonly InspectorFiel
   const result = [...registeredFields(component).values()].map((metadata) => {
     const value = readValue(component, metadata.key)
     const type = fieldType(value, metadata.key)
-    assertValue(metadata, type, value)
+    assertConstraintsMatchType(metadata, type)
     return Object.freeze({ ...metadata, type, value: value as InspectorFieldValue })
   })
   return Object.freeze(result)
@@ -156,6 +163,7 @@ export function setInspectorFieldValue(component: Component, key: string, value:
   if (metadata.readonly) fail('readonly-field', `Inspector field is readonly: ${key}`)
 
   const currentType = fieldType(readValue(component, key), key)
-  assertValue(metadata, currentType, value)
+  assertConstraintsMatchType(metadata, currentType)
+  assertIncomingValue(metadata, currentType, value)
   ;(component as unknown as Record<string, unknown>)[key] = value
 }
