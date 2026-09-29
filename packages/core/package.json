@@ -1,0 +1,17 @@
+{
+  "name": "@forge2d/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b tsconfig.json tsconfig.test.json --pretty"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.1"
+  }
+}

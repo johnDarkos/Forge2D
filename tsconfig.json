@@ -12,6 +12,12 @@
     },
     {
       "path": "./tsconfig.domain.json"
+    },
+    {
+      "path": "./packages/core/tsconfig.json"
+    },
+    {
+      "path": "./packages/core/tsconfig.test.json"
     }
   ]
 }

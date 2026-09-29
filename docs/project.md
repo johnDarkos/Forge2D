@@ -427,6 +427,32 @@ TypeScript работает в strict-режиме с `exactOptionalPropertyType
 `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax` и отдельными проектами
 для приложения, Node-конфигурации, E2E и domain.
 
+### Forge Core: Scene Model v1
+
+Milestone 0 начинается с независимого workspace-пакета `@forge2d/core`. Его первый
+контракт — сериализуемый снимок сцены без React, DOM и runtime-состояния:
+
+```text
+SceneDocument { version, id, name, objects[] }
+└── GameObjectData { id, name, parentId?, components[] }
+    └── ComponentData { id, type, properties }
+```
+
+`parentId` строит дерево внутри одной сцены. Корневой объект не содержит это поле.
+`properties` — JSON-объект: разрешены строки, конечные числа, boolean, null, массивы и
+вложенные объекты. Функции, `undefined`, `NaN`, бесконечность, экземпляры классов и циклы
+отклоняются на границе.
+
+Публичные операции `createScene`, `parseScene`, `serializeScene`, `addGameObject`,
+`updateGameObject` и `removeGameObject` возвращают отделённый снимок и не меняют входные
+данные. ID объектов уникальны в сцене, ID компонентов — в пределах объекта. Родитель
+обязан существовать, циклы запрещены. Удаление объекта каскадно удаляет его потомков;
+`parentId: null` в patch переносит объект в корень. Нарушения контракта представлены
+`SceneValidationError` с машинным `code` и путём к полю.
+
+`version: 1` резервирует миграции формата. Вложенные сцены и runtime-экземпляры входят в
+следующие этапы Milestone 0 и не добавляются в сохранённый формат без отдельного решения.
+
 ## Поток данных и состояние
 
 Данные идут вниз через props, пользовательские действия возвращаются через callbacks:
@@ -544,14 +570,14 @@ PNG кодируются через `canvas.toBlob('image/png')` без сгла
 
 ## Тестирование и CI
 
-Актуальный полный набор после этапа 6:
+Актуальный полный набор после M0.1:
 
-- **195 Vitest** в 20 файлах;
+- **223 Vitest** в 21 файле;
 - **18 Playwright**;
-- statements: **93.19%**;
-- branches: **90.01%**;
-- functions: **96.31%**;
-- lines: **96.96%**.
+- statements: **93.87%**;
+- branches: **90.72%**;
+- functions: **96.71%**;
+- lines: **97.38%**.
 
 Пороги `vitest.config.ts`:
 
@@ -599,6 +625,25 @@ TypeScript, Vitest с покрытием, build и Playwright. При ошибк
 
 ## Ограничения и roadmap
 
+### Прогресс Milestone 0
+
+Единый трекер реализации. Галочка ставится только после полного прогона проверок этапа.
+
+- [x] Подготовка: Architecture v0.1, актуальный baseline и отдельная feature-ветка.
+- [x] **M0.1 — Forge Core / Scene Model v1**
+  - [x] workspace и пакет `@forge2d/core`;
+  - [x] RED-тесты Scene Model;
+  - [x] сериализуемые `SceneDocument`, `GameObjectData`, `ComponentData`;
+  - [x] валидация ID, иерархии, компонентов и JSON-значений;
+  - [x] immutable add/update/remove и JSON round-trip;
+  - [x] общий quality pipeline.
+- [ ] **M0.2 — Runtime lifecycle:** `GameObject`, `Component`, `Behaviour`, `Signal`.
+- [ ] **M0.3 — TypeScript → Inspector:** технический spike и минимальный `@field`.
+- [ ] **M0.4 — Renderer:** API, Transform, SpriteRenderer и TextureAsset.
+- [ ] **M0.5 — Forge Editor:** минимальные Hierarchy, Scene, Inspector и Assets.
+- [ ] **M0.6 — Living Scene:** сквозной сценарий `speed 220 → 350 → runtime`.
+- [ ] **M0.7 — Sprite Editor integration:** production Asset host flow после Milestone 0.
+
 ### Порядок работ: сначала Milestone 0
 
 Предварительные условия этапа 7 выполнены: string ID унифицированы, Asset Model существует,
@@ -610,8 +655,8 @@ embedding contract стабилен, сессия отделена от I/O, CSS
 появляется вместе с Milestone 0 и позже. Пока роль хоста играет только тестовый
 `tests/fixtures/AssetHost.tsx`.
 
-Для этого репозитория на время Milestone 0 ничего не меняется: Sprite Editor остаётся
-автономным, `SpriteEditorResult` — стабильным, adapter уже готов к вызову из хоста.
+Milestone 0 реализуется в этом репозитории отдельными пакетами Core и Runtime. Sprite Editor
+остаётся автономным, `SpriteEditorResult` — стабильным, adapter уже готов к вызову из хоста.
 
 ### Этап 7 после Milestone 0
 
@@ -650,7 +695,9 @@ Sprite Editor по-прежнему не должен импортировать
 
 - backend, IndexedDB, project.json и постоянное хранение текстур;
 - Asset Manager и полноценный production Project Store;
-- Scene Editor, ECS, runtime, prefab, scripting и plugin system;
+- расширенные инструменты Scene Editor за пределами vertical slice;
+- ECS и Prefab как отдельные пользовательские модели — Architecture v0.1 их не вводит;
+- plugin system;
 - safety limit, lazy geometry и virtualization для очень больших сеток;
 - Web Worker, progress и cancel для тяжёлого ZIP;
 - library build и публикация package до появления второго consumer;

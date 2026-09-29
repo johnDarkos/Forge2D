@@ -12,8 +12,13 @@ export default mergeConfig(
       restoreMocks: true,
       coverage: {
         provider: 'v8',
-        include: ['src/**/*.{ts,tsx}'],
-        exclude: ['src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
+        include: ['src/**/*.{ts,tsx}', 'packages/core/src/**/*.ts'],
+        exclude: [
+          'src/test/**',
+          'src/main.tsx',
+          'src/vite-env.d.ts',
+          'packages/core/src/**/*.test.ts',
+        ],
         reporter: ['text', 'html'],
         // Пороги чуть ниже достигнутого: падение покрытия видно, шум от округления — нет.
         thresholds: { statements: 90, branches: 85, functions: 95, lines: 94 },
