@@ -1,10 +1,17 @@
-import { renameSprite, removeSprite } from '@/entities/sprite/domain'
+import {
+  gridFrameToSprite,
+  manualFrameToSprite,
+  renameSprite,
+  removeSprite,
+} from '@/entities/sprite/domain'
 import type {
   CropRect,
   GridOptionsInput,
   LoadedSpriteSheet,
   SpriteEditorMode,
   SpriteFrame,
+  SpriteFrameGeometry,
+  SpriteFrameId,
   SpriteGridSettings,
 } from '@/entities/sprite'
 import type { UploadError } from '@/features/upload-sprite-sheet'
@@ -21,7 +28,8 @@ export type EditorSessionAction =
   | { readonly type: 'selectionReplaced'; readonly ids: readonly string[] }
   | { readonly type: 'selectionCleared' }
   | { readonly type: 'frameToggled'; readonly id: string }
-  | { readonly type: 'spriteAdded'; readonly sprite: SpriteFrame }
+  | { readonly type: 'manualFrameAdded' }
+  | { readonly type: 'gridFramesCommitted'; readonly frames: readonly SpriteFrameGeometry[] }
   | { readonly type: 'spriteRenamed'; readonly id: string; readonly name: string }
   | {
       readonly type: 'spriteRemoved'
@@ -42,7 +50,7 @@ export type EditorSessionAction =
   | {
       readonly type: 'modeChanged'
       readonly mode: SpriteEditorMode
-      readonly sprites: readonly SpriteFrame[]
+      readonly frames: readonly SpriteFrameGeometry[]
     }
   | { readonly type: 'viewportChanged'; readonly viewport: CanvasViewport }
   | { readonly type: 'regionChanged'; readonly region: CropRect | null }
@@ -52,14 +60,56 @@ export type EditorSessionAction =
 export const sameRect = (a: SpriteFrame['rect'], b: SpriteFrame['rect']) =>
   a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
 
-/** Номера карточек относятся к UI; строковые domain ID не зависят от порядка и имени. */
+/**
+ * Номера карточек относятся к UI; строковые domain ID не зависят от порядка и имени.
+ * Попадание спрайта в сессию резервирует его ID: это единственный источник usedIds.
+ */
 export function storeSprites(state: EditorState, sprites: readonly SpriteFrame[]): EditorState {
   const displayNumbers = new Map(state.displayNumbers)
+  const usedIds = new Set(state.usedIds)
   let nextDisplayNumber = state.nextDisplayNumber
   for (const sprite of sprites) {
     if (!displayNumbers.has(sprite.id)) displayNumbers.set(sprite.id, nextDisplayNumber++)
+    usedIds.add(sprite.id)
   }
-  return { ...state, sprites, displayNumbers, nextDisplayNumber }
+  return { ...state, sprites, displayNumbers, usedIds, nextDisplayNumber }
+}
+
+/** Свободный вариант кандидата: занятый ID не отнимается у владельца. */
+function freeId(usedIds: ReadonlySet<SpriteFrameId>, candidate: SpriteFrameId): SpriteFrameId {
+  let id = candidate
+  let suffix = 2
+  while (usedIds.has(id)) id = `${candidate}-${suffix++}`
+  return id
+}
+
+export interface IdRegistry {
+  readonly usedIds: ReadonlySet<SpriteFrameId>
+  readonly gridAliases: ReadonlyMap<SpriteFrameId, SpriteFrameId>
+}
+
+/**
+ * Превращает выбранные ячейки в спрайты, не меняя уже сохранённые.
+ * Чистая функция: Save берёт из неё результат, редьюсер — реестр.
+ */
+export function commitGridFrames(
+  state: EditorState,
+  frames: readonly SpriteFrameGeometry[],
+): { readonly sprites: SpriteFrame[]; readonly registry: IdRegistry } {
+  const usedIds = new Set(state.usedIds)
+  const gridAliases = new Map(state.gridAliases)
+  const added = frames.map((frame) => {
+    const existing = state.sprites.find((sprite) => sameRect(sprite.rect, frame))
+    if (existing) return existing
+    let id = gridAliases.get(frame.id)
+    if (!id) {
+      id = freeId(usedIds, frame.id)
+      usedIds.add(id)
+      gridAliases.set(frame.id, id)
+    }
+    return gridFrameToSprite(frame, id)
+  })
+  return { sprites: mergeSprites(state.sprites, added), registry: { usedIds, gridAliases } }
 }
 
 export function mergeSprites(
@@ -98,6 +148,8 @@ export function createInitialEditorState({
       selectedIds: new Set(),
       activeFrameId: null,
       isExporting: false,
+      usedIds: new Set(),
+      gridAliases: new Map(),
     },
     (initialData?.sprites ?? []).map((sprite) => ({ ...sprite, rect: { ...sprite.rect } })),
   )
@@ -151,9 +203,19 @@ export function editorSessionReducer(state: EditorState, action: EditorSessionAc
       selectedIds.add(action.id)
       return { ...state, selectedIds, activeFrameId: action.id }
     }
-    case 'spriteAdded':
-      return state.manualRegion
-        ? storeSprites({ ...state, manualRegion: null }, [...state.sprites, action.sprite])
+    case 'manualFrameAdded': {
+      if (!state.manualRegion) return state
+      const number = state.nextDisplayNumber
+      const sprite = manualFrameToSprite(
+        state.manualRegion,
+        freeId(state.usedIds, `sprite-${number}`),
+        `frame_${String(number).padStart(3, '0')}`,
+      )
+      return storeSprites({ ...state, manualRegion: null }, [...state.sprites, sprite])
+    }
+    case 'gridFramesCommitted':
+      return action.frames.length
+        ? { ...state, ...commitGridFrames(state, action.frames).registry }
         : state
     case 'spriteRenamed':
       return { ...state, sprites: renameSprite(state.sprites, action.id, action.name) }
@@ -179,6 +241,8 @@ export function editorSessionReducer(state: EditorState, action: EditorSessionAc
         sprites: [],
         displayNumbers: new Map(),
         nextDisplayNumber: 1,
+        usedIds: new Set(),
+        gridAliases: new Map(),
         isDrawing: false,
         selectedIds: new Set(),
         activeFrameId: null,
@@ -189,18 +253,21 @@ export function editorSessionReducer(state: EditorState, action: EditorSessionAc
     }
     case 'sourceFailed':
       return { ...state, source: { status: 'error', error: action.error } }
-    case 'modeChanged':
+    case 'modeChanged': {
+      const { sprites, registry } = commitGridFrames(state, action.frames)
       return storeSprites(
         {
           ...state,
+          ...registry,
           selectionMode: action.mode,
           manualRegion: null,
           isDrawing: false,
           selectedIds: new Set(),
           activeFrameId: null,
         },
-        action.sprites,
+        sprites,
       )
+    }
     case 'viewportChanged':
       return state.isDrawing ? state : { ...state, viewport: action.viewport }
     case 'regionChanged':

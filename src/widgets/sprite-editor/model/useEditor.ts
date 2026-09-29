@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { generateFrames, isSupportedImageType, validateGrid } from '@/entities/sprite'
-import {
-  createSpriteEditorResult,
-  gridFrameToSprite,
-  manualFrameToSprite,
-} from '@/entities/sprite/domain'
-import type { NamedSpriteFrame, SpriteFrame, SpriteFrameGeometry } from '@/entities/sprite'
+import { createSpriteEditorResult } from '@/entities/sprite/domain'
+import type { NamedSpriteFrame } from '@/entities/sprite'
 import type { UploadError } from '@/features/upload-sprite-sheet'
 import {
+  commitGridFrames,
   createInitialEditorState,
   editorSessionReducer,
   gridSettingsFromState,
   isEditorBusy,
-  mergeSprites,
   sameRect,
 } from './session'
 import type { EditorSessionAction } from './session'
@@ -55,8 +51,6 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
   const actionRunning = useRef(false)
   const mounted = useRef(true)
   const sequence = useRef(0)
-  const gridIds = useRef(new Map<string, string>())
-  const usedIds = useRef(new Set(initial.sprites.map((sprite) => sprite.id)))
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -211,20 +205,8 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
     row: 0,
     column: 0,
   }))
-  const normalizeGrid = (frame: SpriteFrameGeometry, saved: readonly SpriteFrame[]) => {
-    const existing = saved.find((sprite) => sameRect(sprite.rect, frame))
-    if (existing) return existing
-    const normalized = gridFrameToSprite(frame)
-    let id = gridIds.current.get(normalized.id)
-    if (!id) {
-      id = normalized.id
-      let suffix = 2
-      while (usedIds.current.has(id)) id = `${normalized.id}-${suffix++}`
-      usedIds.current.add(id)
-      gridIds.current.set(normalized.id, id)
-    }
-    return { ...normalized, id }
-  }
+  /** Ячейки, которые Save и смена режима превращают в спрайты. */
+  const pendingFrames = isManual ? [] : selectedFrames
   const changeSize = (key: 'width' | 'height', value: string) =>
     dispatchWhenIdle({ type: 'frameSizeChanged', key, value })
   const changeSpacing: SpriteEditorViewProps['settings']['onSpacingChange'] = (key, value) =>
@@ -252,10 +234,9 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
         setActionError(null)
         void (async () => {
           try {
-            const sprites = mergeSprites(
-              state.sprites,
-              isManual ? [] : selectedFrames.map((frame) => normalizeGrid(frame, state.sprites)),
-            )
+            // Редьюсер получает те же ячейки, поэтому повторный Save выдаёт те же ID.
+            const { sprites } = commitGridFrames(state, pendingFrames)
+            dispatch({ type: 'gridFramesCommitted', frames: pendingFrames })
             const result = createSpriteEditorResult({
               source: { width: sheet.metadata.width, height: sheet.metadata.height },
               sprites,
@@ -299,16 +280,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
           state.isDrawing
         )
           return
-        let id = `sprite-${state.nextDisplayNumber}`
-        let suffix = 2
-        while (usedIds.current.has(id)) id = `sprite-${state.nextDisplayNumber}-${suffix++}`
-        usedIds.current.add(id)
-        const sprite = manualFrameToSprite(
-          state.manualRegion,
-          id,
-          `frame_${String(state.nextDisplayNumber).padStart(3, '0')}`,
-        )
-        dispatch({ type: 'spriteAdded', sprite })
+        dispatch({ type: 'manualFrameAdded' })
       },
       onRename: (id, name) => dispatchWhenIdle({ type: 'spriteRenamed', id, name }),
       onRemove: (id) => {
@@ -330,8 +302,6 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
         setUploadError(null)
         setActionError(null)
         const id = ++sequence.current
-        gridIds.current.clear()
-        usedIds.current = new Set(id === 1 ? initial.sprites.map((sprite) => sprite.id) : [])
         dispatch({ type: 'sourceLoading', file, requestId: id })
         setRequest({ kind: 'file', file, id, initialize: id === 1 })
       },
@@ -358,13 +328,7 @@ export function useEditor(props: SpriteEditorProps): SpriteEditorViewProps {
       modeDisabled: !sheet || busy,
       onModeChange: (selectionMode) => {
         if (busy || state.isDrawing || selectionMode === state.selectionMode) return
-        const committed = isManual
-          ? state.sprites
-          : mergeSprites(
-              state.sprites,
-              selectedFrames.map((frame) => normalizeGrid(frame, state.sprites)),
-            )
-        dispatch({ type: 'modeChanged', mode: selectionMode, sprites: committed })
+        dispatch({ type: 'modeChanged', mode: selectionMode, frames: pendingFrames })
       },
       onRegionChange: (manualRegion) =>
         dispatchWhenIdle({ type: 'regionChanged', region: manualRegion }),

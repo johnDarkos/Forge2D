@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
-import type { LoadedSpriteSheet, SpriteFrame } from '@/entities/sprite'
+import type { LoadedSpriteSheet, SpriteFrame, SpriteFrameGeometry } from '@/entities/sprite'
 import {
+  commitGridFrames,
   createInitialEditorState,
   editorSessionReducer,
   gridSettingsFromState,
@@ -40,6 +41,20 @@ function sheet(): LoadedSpriteSheet {
   }
 }
 
+/** Ячейка сетки: ID полностью кодирует геометрию, как в generateFrames. */
+function cell(x: number, y: number, size = 32, displayNumber = 1): SpriteFrameGeometry {
+  return {
+    id: `grid-${x}-${y}-${size}-${size}`,
+    displayNumber,
+    row: 0,
+    column: 0,
+    x,
+    y,
+    width: size,
+    height: size,
+  }
+}
+
 test('initial state copies external data and assigns stable presentation numbers', () => {
   const state = initial()
   expect(state.selectionMode).toBe('grid')
@@ -51,6 +66,8 @@ test('initial state copies external data and assigns stable presentation numbers
     ['run', 2],
   ])
   expect(state.nextDisplayNumber).toBe(3)
+  expect([...state.usedIds]).toEqual(['idle', 'run'])
+  expect(state.gridAliases.size).toBe(0)
   expect(gridSettingsFromState(state)).toEqual({
     cellWidth: 32,
     cellHeight: 24,
@@ -101,31 +118,32 @@ test('manual frame transitions preserve IDs and never reuse display numbers', ()
     type: 'regionChanged',
     region: { x: 10, y: 20, width: 40, height: 50 },
   })
-  const added = editorSessionReducer(withRegion, {
-    type: 'spriteAdded',
-    sprite: { id: 'manual-3', name: 'jump', rect: { x: 10, y: 20, width: 40, height: 50 } },
+  const added = editorSessionReducer(withRegion, { type: 'manualFrameAdded' })
+  expect(added.sprites[2]).toMatchObject({
+    id: 'sprite-3',
+    name: 'frame_003',
+    rect: { x: 10, y: 20, width: 40, height: 50 },
   })
-  expect(added.displayNumbers.get('manual-3')).toBe(3)
+  expect(added.displayNumbers.get('sprite-3')).toBe(3)
+  expect(added.usedIds.has('sprite-3')).toBe(true)
   const renamed = editorSessionReducer(added, {
     type: 'spriteRenamed',
-    id: 'manual-3',
+    id: 'sprite-3',
     name: 'jump_updated',
   })
-  expect(renamed.sprites[2]).toMatchObject({ id: 'manual-3', name: 'jump_updated' })
+  expect(renamed.sprites[2]).toMatchObject({ id: 'sprite-3', name: 'jump_updated' })
   const removed = editorSessionReducer(renamed, {
     type: 'spriteRemoved',
-    id: 'manual-3',
+    id: 'sprite-3',
     selectedGridIds: [],
   })
   const nextRegion = editorSessionReducer(removed, {
     type: 'regionChanged',
     region: { x: 1, y: 2, width: 3, height: 4 },
   })
-  const next = editorSessionReducer(nextRegion, {
-    type: 'spriteAdded',
-    sprite: { id: 'manual-4', name: 'hit', rect: { x: 1, y: 2, width: 3, height: 4 } },
-  })
-  expect(next.displayNumbers.get('manual-4')).toBe(4)
+  const next = editorSessionReducer(nextRegion, { type: 'manualFrameAdded' })
+  expect(next.sprites[2]).toMatchObject({ id: 'sprite-4', name: 'frame_004' })
+  expect(next.displayNumbers.get('sprite-4')).toBe(4)
   expect(next.nextDisplayNumber).toBe(5)
 })
 
@@ -145,6 +163,8 @@ test('source loading resets source-owned state and source ready hydrates sprites
   expect(loading.viewport).toEqual({ zoom: 1, x: 0, y: 0 })
   expect(loading.sprites).toEqual([])
   expect(loading.manualRegion).toBeNull()
+  expect(loading.usedIds.size).toBe(0)
+  expect(loading.gridAliases.size).toBe(0)
   const ready = editorSessionReducer(loading, {
     type: 'sourceReady',
     sheet: sheet(),
@@ -153,6 +173,7 @@ test('source loading resets source-owned state and source ready hydrates sprites
   expect(ready.source.status).toBe('ready')
   expect(ready.sprites).toEqual(sprites)
   expect(ready.displayNumbers.get('run')).toBe(2)
+  expect([...ready.usedIds]).toEqual(['idle', 'run'])
 })
 
 test('mode change commits supplied sprites and resets transient interaction state', () => {
@@ -166,13 +187,11 @@ test('mode change commits supplied sprites and resets transient interaction stat
   const next = editorSessionReducer(state, {
     type: 'modeChanged',
     mode: 'manual',
-    sprites: [
-      ...sprites,
-      { id: 'third', name: 'third', rect: { x: 64, y: 0, width: 32, height: 32 } },
-    ],
+    frames: [cell(64, 0, 32, 3)],
   })
   expect(next.selectionMode).toBe('manual')
   expect(next.sprites).toHaveLength(3)
+  expect(next.sprites[2]).toMatchObject({ id: 'grid-64-0-32-32', name: 'frame_003' })
   expect(next.manualRegion).toBeNull()
   expect(next.isDrawing).toBe(false)
   expect(next.selectedIds.size).toBe(0)
@@ -210,4 +229,77 @@ test('mergeSprites keeps saved order and ignores duplicate IDs', () => {
     ...sprites,
     { id: 'jump', name: 'jump', rect: { x: 64, y: 0, width: 32, height: 32 } },
   ])
+})
+
+test('repeated grid commits issue one stable ID for the same cell', () => {
+  const state = createInitialEditorState({})
+  expect(commitGridFrames(state, [cell(0, 0)]).sprites.map((sprite) => sprite.id)).toEqual([
+    'grid-0-0-32-32',
+  ])
+  const committed = editorSessionReducer(state, {
+    type: 'gridFramesCommitted',
+    frames: [cell(0, 0)],
+  })
+  expect(committed.sprites).toEqual([])
+  expect(commitGridFrames(committed, [cell(0, 0)]).sprites.map((sprite) => sprite.id)).toEqual([
+    'grid-0-0-32-32',
+  ])
+})
+
+test('a grid ID taken by another sprite is suffixed instead of stolen', () => {
+  const state = createInitialEditorState({
+    initialData: {
+      sprites: [
+        { id: 'grid-0-0-32-32', name: 'taken', rect: { x: 96, y: 96, width: 16, height: 16 } },
+      ],
+      settings: { mode: 'grid' },
+    },
+  })
+  const { sprites, registry } = commitGridFrames(state, [cell(0, 0)])
+  expect(sprites.map((sprite) => sprite.id)).toEqual(['grid-0-0-32-32', 'grid-0-0-32-32-2'])
+  expect(registry.gridAliases.get('grid-0-0-32-32')).toBe('grid-0-0-32-32-2')
+})
+
+test('a cell already saved under its own rectangle reuses that sprite', () => {
+  const state = createInitialEditorState({
+    initialData: {
+      sprites: [{ id: 'hero', name: 'hero', rect: { x: 0, y: 0, width: 32, height: 32 } }],
+      settings: { mode: 'grid' },
+    },
+  })
+  const { sprites, registry } = commitGridFrames(state, [cell(0, 0)])
+  expect(sprites.map((sprite) => sprite.id)).toEqual(['hero'])
+  expect(registry.gridAliases.size).toBe(0)
+})
+
+test('IDs of removed sprites are never reissued', () => {
+  let state = editorSessionReducer(createInitialEditorState({}), {
+    type: 'regionChanged',
+    region: { x: 0, y: 0, width: 8, height: 8 },
+  })
+  state = editorSessionReducer(state, { type: 'manualFrameAdded' })
+  const [added] = state.sprites
+  state = editorSessionReducer(state, {
+    type: 'spriteRemoved',
+    id: added.id,
+    selectedGridIds: [],
+  })
+  expect(state.sprites).toEqual([])
+  expect(state.usedIds.has(added.id)).toBe(true)
+  state = editorSessionReducer(state, {
+    type: 'regionChanged',
+    region: { x: 0, y: 0, width: 8, height: 8 },
+  })
+  state = editorSessionReducer(state, { type: 'manualFrameAdded' })
+  expect(state.sprites[0].id).not.toBe(added.id)
+})
+
+test('grid aliases survive a cell resize because the cell ID encodes geometry', () => {
+  const state = editorSessionReducer(createInitialEditorState({}), {
+    type: 'gridFramesCommitted',
+    frames: [cell(0, 0, 32)],
+  })
+  const resized = commitGridFrames(state, [cell(0, 0, 64)])
+  expect(resized.sprites.map((sprite) => sprite.id)).toEqual(['grid-0-0-64-64'])
+  expect(resized.registry.gridAliases.get('grid-0-0-32-32')).toBe('grid-0-0-32-32')
 })

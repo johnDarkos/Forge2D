@@ -31,6 +31,10 @@ export interface EditorState {
   readonly sprites: readonly SpriteFrame[]
   readonly displayNumbers: ReadonlyMap<string, number>
   readonly nextDisplayNumber: number
+  /** Каждый выданный за сессию ID; удалённый не возвращается в оборот. */
+  readonly usedIds: ReadonlySet<SpriteFrameId>
+  /** Геометрия ячейки → выданный ей ID, чтобы повторный Save не менял идентичность. */
+  readonly gridAliases: ReadonlyMap<SpriteFrameId, SpriteFrameId>
   readonly isDrawing: boolean
   readonly source: ImageLoadState
   readonly frameSizeInput: FrameSizeInput
