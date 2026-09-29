@@ -497,6 +497,11 @@ class PlayerController extends Behaviour {
 проверкой типа, `min`, `max` и `readonly`. `readonly` запрещает редактирование через
 Inspector API, но не мешает самому игровому коду менять поле.
 
+Ограничения относятся только к записи через Inspector. Если игровой код вывел значение за
+`min`/`max`, снимок показывает фактическое значение, а не отказывает в чтении всего
+компонента: ошибка диапазона — это отказ от правки, а не потеря доступа к объекту. `step`
+описывает шаг для будущего UI и на проверку значения не влияет.
+
 MVP поддерживает `number`, `string` и `boolean`. Подпись без `label` строится из имени:
 `displayName → Display Name`. Метаданные наследуются; повторный `@field` в подклассе
 заменяет настройки поля, сохраняя его позицию. Возвращаемые Inspector-снимки заморожены и
@@ -505,6 +510,47 @@ MVP поддерживает `number`, `string` и `boolean`. Подпись б�
 Технический spike выбрал совместимый с Vite 8 режим `experimentalDecorators` в конфигурации
 `@forge2d/core`. Отдельные schema-файлы, `reflect-metadata` и `emitDecoratorMetadata` не
 используются: настройки задаёт декоратор, тип определяется по реальному значению экземпляра.
+
+### Forge Runtime: Renderer
+
+`@forge2d/runtime` — отдельный workspace-пакет без зависимости от React и DOM. На этом
+этапе он содержит нейтральный Renderer API, чтобы модель сцены не зависела от PixiJS,
+Canvas или другого будущего графического backend.
+
+`TextureAsset` хранит `id`, `name`, постоянный `uri` и целочисленный размер изображения.
+`createTextureAsset` проверяет и замораживает отдельный дескриптор. `TextureRegion`
+описывает прямоугольник спрайта внутри текстуры; координаты и размеры проверяются по её
+границам. Формат структурно совместим с одноимённым asset из Project domain: служебные
+`type` и `schemaVersion` проектной модели не попадают в команду рисования.
+
+Два встроенных компонента связывают `GameObject` с Renderer:
+
+- `Transform` хранит позицию, поворот и масштаб;
+- `SpriteRenderer` хранит текстуру, необязательную область спрайта, видимость, прозрачность
+  и порядок отрисовки.
+
+Редактируемые числовые и логические свойства обоих компонентов отмечены `@field`, поэтому
+будущий Inspector получает их через уже реализованный API Core. Текстура меняется через
+`setTexture`: это не простое присваивание, а единая точка проверки asset и его области.
+
+Поток одного кадра:
+
+```text
+readonly GameObject[]
+  → найти Transform + SpriteRenderer
+  → пропустить невидимые и неготовые объекты
+  → проверить все значения до начала кадра
+  → создать immutable SpriteRenderCommand[]
+  → стабильно отсортировать по SpriteRenderer.order
+  → RendererBackend.beginFrame()
+  → RendererBackend.drawSprite(command) для каждой команды
+  → RendererBackend.endFrame()
+```
+
+`endFrame` вызывается также после ошибки `drawSprite`, чтобы backend мог освободить
+ресурсы кадра. Конкретная графическая библиотека здесь намеренно не выбрана: Architecture
+v0.1 требует отдельного технического spike, а редактор и игра должны использовать один и
+тот же будущий adapter.
 
 ## Поток данных и состояние
 
@@ -623,14 +669,14 @@ PNG кодируются через `canvas.toBlob('image/png')` без сгла
 
 ## Тестирование и CI
 
-Актуальный полный набор после M0.3:
+Актуальный полный набор после M0.4:
 
-- **258 Vitest** в 23 файлах;
+- **279 Vitest** в 24 файлах;
 - **18 Playwright**;
-- statements: **94.89%**;
-- branches: **91.56%**;
-- functions: **97.25%**;
-- lines: **97.83%**.
+- statements: **95.08%**;
+- branches: **91.99%**;
+- functions: **97.44%**;
+- lines: **97.80%**.
 
 Пороги `vitest.config.ts`:
 
@@ -700,9 +746,14 @@ TypeScript, Vitest с покрытием, build и Playwright. При ошибк
   - [x] технический spike декораторов TypeScript/Vite;
   - [x] `@field` и наследуемые Inspector-метаданные;
   - [x] чтение и безопасное изменение значений;
-  - [x] ограничения `min`, `max`, `step` и `readonly`;
+  - [x] проверка `min`, `max` и `readonly` на записи, `step` как подсказка UI;
   - [x] общий quality pipeline.
-- [ ] **M0.4 — Renderer:** API, Transform, SpriteRenderer и TextureAsset.
+- [x] **M0.4 — Renderer**
+  - [x] workspace и декларационный контракт `@forge2d/runtime`;
+  - [x] проверяемые `TextureAsset` и `TextureRegion`;
+  - [x] Inspector-совместимые `Transform` и `SpriteRenderer`;
+  - [x] backend-neutral Renderer API и immutable-команды;
+  - [x] общий quality pipeline.
 - [ ] **M0.5 — Forge Editor:** минимальные Hierarchy, Scene, Inspector и Assets.
 - [ ] **M0.6 — Living Scene:** сквозной сценарий `speed 220 → 350 → runtime`.
 - [ ] **M0.7 — Sprite Editor integration:** production Asset host flow после Milestone 0.

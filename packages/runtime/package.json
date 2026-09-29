@@ -1,5 +1,5 @@
 {
-  "name": "@forge2d/core",
+  "name": "@forge2d/runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,6 +12,9 @@
       "types": "./dist/types/index.d.ts",
       "import": "./src/index.ts"
     }
+  },
+  "dependencies": {
+    "@forge2d/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

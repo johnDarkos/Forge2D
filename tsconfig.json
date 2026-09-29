@@ -18,6 +18,12 @@
     },
     {
       "path": "./packages/core/tsconfig.test.json"
+    },
+    {
+      "path": "./packages/runtime/tsconfig.json"
+    },
+    {
+      "path": "./packages/runtime/tsconfig.test.json"
     }
   ]
 }

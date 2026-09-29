@@ -12,12 +12,13 @@ export default mergeConfig(
       restoreMocks: true,
       coverage: {
         provider: 'v8',
-        include: ['src/**/*.{ts,tsx}', 'packages/core/src/**/*.ts'],
+        include: ['src/**/*.{ts,tsx}', 'packages/core/src/**/*.ts', 'packages/runtime/src/**/*.ts'],
         exclude: [
           'src/test/**',
           'src/main.tsx',
           'src/vite-env.d.ts',
           'packages/core/src/**/*.test.ts',
+          'packages/runtime/src/**/*.test.ts',
         ],
         reporter: ['text', 'html'],
         // Пороги чуть ниже достигнутого: падение покрытия видно, шум от округления — нет.
