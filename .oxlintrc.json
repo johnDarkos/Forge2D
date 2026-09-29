@@ -11,7 +11,9 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "vitest/expect-expect": [
       "error",
-      { "assertFunctionNames": ["expect", "expectTypeOf", "expectSceneError"] }
+      {
+        "assertFunctionNames": ["expect", "expectTypeOf", "expectSceneError", "expectRuntimeError"]
+      }
     ]
   }
 }

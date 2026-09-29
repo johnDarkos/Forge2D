@@ -453,6 +453,31 @@ SceneDocument { version, id, name, objects[] }
 `version: 1` резервирует миграции формата. Вложенные сцены и runtime-экземпляры входят в
 следующие этапы Milestone 0 и не добавляются в сохранённый формат без отдельного решения.
 
+### Forge Core: Runtime lifecycle
+
+`GameObject` — runtime-контейнер компонентов. Один экземпляр `Component` одновременно
+принадлежит только одному объекту; `getComponent` и `getComponents` находят компоненты по
+классу. После удаления компонент можно присоединить снова, а после `destroy()` сам
+`GameObject` переходит в терминальное состояние.
+
+`Behaviour` расширяет `Component` тремя MVP-хуками:
+
+```text
+start()       один раз перед первым update
+update(dt)    на каждом обновлении, dt — конечное число >= 0
+onDestroy()   при удалении компонента или уничтожении GameObject
+```
+
+Порядок соответствует порядку компонентов. Добавленный во время обновления Behaviour
+начинает работу на следующем обновлении; удалённый до своей очереди уже не вызывается.
+`onDestroy` видит владельца до отсоединения. Очистка завершается даже при исключении:
+одна ошибка пробрасывается после очистки, несколько объединяются в `AggregateError`.
+
+`Signal<T>` передаёт типизированные локальные события в порядке подписки. `on` возвращает
+идемпотентную функцию отписки; также доступны `off`, `clear` и `size`. Во время `emit`
+используется стабильный снимок: новая подписка срабатывает со следующего события, а
+удалённый до своей очереди listener пропускается.
+
 ## Поток данных и состояние
 
 Данные идут вниз через props, пользовательские действия возвращаются через callbacks:
@@ -570,14 +595,14 @@ PNG кодируются через `canvas.toBlob('image/png')` без сгла
 
 ## Тестирование и CI
 
-Актуальный полный набор после M0.1:
+Актуальный полный набор после M0.2:
 
-- **223 Vitest** в 21 файле;
+- **245 Vitest** в 22 файлах;
 - **18 Playwright**;
-- statements: **93.87%**;
-- branches: **90.72%**;
-- functions: **96.71%**;
-- lines: **97.38%**.
+- statements: **94.49%**;
+- branches: **91.05%**;
+- functions: **97.09%**;
+- lines: **97.65%**.
 
 Пороги `vitest.config.ts`:
 
@@ -637,7 +662,12 @@ TypeScript, Vitest с покрытием, build и Playwright. При ошибк
   - [x] валидация ID, иерархии, компонентов и JSON-значений;
   - [x] immutable add/update/remove и JSON round-trip;
   - [x] общий quality pipeline.
-- [ ] **M0.2 — Runtime lifecycle:** `GameObject`, `Component`, `Behaviour`, `Signal`.
+- [x] **M0.2 — Runtime lifecycle**
+  - [x] владение и поиск `Component` в `GameObject`;
+  - [x] детерминированные `start`, `update` и `onDestroy`;
+  - [x] безопасные мутации и очистка при ошибках lifecycle;
+  - [x] типизированный `Signal` с управлением подписками;
+  - [x] общий quality pipeline.
 - [ ] **M0.3 — TypeScript → Inspector:** технический spike и минимальный `@field`.
 - [ ] **M0.4 — Renderer:** API, Transform, SpriteRenderer и TextureAsset.
 - [ ] **M0.5 — Forge Editor:** минимальные Hierarchy, Scene, Inspector и Assets.
