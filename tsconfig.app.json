@@ -21,6 +21,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    "experimentalDecorators": true,
     "noEmit": true,
     "jsx": "react-jsx",
 
@@ -30,5 +31,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    { "path": "./packages/core/tsconfig.json" },
+    { "path": "./packages/runtime/tsconfig.json" }
+  ]
 }

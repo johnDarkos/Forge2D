@@ -49,6 +49,10 @@ Sprite Editor
 `setInspectorFieldValue` проверяет тип, readonly и числовой диапазон. `min/max` ограничивают
 правки Inspector, но не запрещают runtime-коду временно выйти за диапазон.
 
+Core, Runtime и app используют один legacy-режим TypeScript `experimentalDecorators`.
+App содержит project references на оба workspace-пакета, чтобы чистый `tsc -b` создавал
+декларации зависимостей до проверки импортирующего приложения.
+
 ### Rendering
 
 `Transform` и `SpriteRenderer` — компоненты Runtime. `TextureAsset` и `TextureRegion`
