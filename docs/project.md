@@ -478,6 +478,34 @@ onDestroy()   при удалении компонента или уничтож
 используется стабильный снимок: новая подписка срабатывает со следующего события, а
 удалённый до своей очереди listener пропускается.
 
+### Forge Core: TypeScript → Inspector
+
+Публичное поле `Component` попадает в будущий Inspector только с декоратором `@field`:
+
+```ts
+class PlayerController extends Behaviour {
+  @field({ label: 'Movement speed', min: 0, max: 500, step: 10 })
+  speed = 220
+
+  @field({ readonly: true })
+  currentHealth = 100
+}
+```
+
+`getInspectorFields(component)` возвращает упорядоченную модель полей с именем, подписью,
+типом, текущим значением и ограничениями. `setInspectorFieldValue` изменяет экземпляр с
+проверкой типа, `min`, `max` и `readonly`. `readonly` запрещает редактирование через
+Inspector API, но не мешает самому игровому коду менять поле.
+
+MVP поддерживает `number`, `string` и `boolean`. Подпись без `label` строится из имени:
+`displayName → Display Name`. Метаданные наследуются; повторный `@field` в подклассе
+заменяет настройки поля, сохраняя его позицию. Возвращаемые Inspector-снимки заморожены и
+не позволяют изменить внутренний реестр.
+
+Технический spike выбрал совместимый с Vite 8 режим `experimentalDecorators` в конфигурации
+`@forge2d/core`. Отдельные schema-файлы, `reflect-metadata` и `emitDecoratorMetadata` не
+используются: настройки задаёт декоратор, тип определяется по реальному значению экземпляра.
+
 ## Поток данных и состояние
 
 Данные идут вниз через props, пользовательские действия возвращаются через callbacks:
@@ -595,14 +623,14 @@ PNG кодируются через `canvas.toBlob('image/png')` без сгла
 
 ## Тестирование и CI
 
-Актуальный полный набор после M0.2:
+Актуальный полный набор после M0.3:
 
-- **245 Vitest** в 22 файлах;
+- **258 Vitest** в 23 файлах;
 - **18 Playwright**;
-- statements: **94.49%**;
-- branches: **91.05%**;
-- functions: **97.09%**;
-- lines: **97.65%**.
+- statements: **94.89%**;
+- branches: **91.56%**;
+- functions: **97.25%**;
+- lines: **97.83%**.
 
 Пороги `vitest.config.ts`:
 
@@ -668,7 +696,12 @@ TypeScript, Vitest с покрытием, build и Playwright. При ошибк
   - [x] безопасные мутации и очистка при ошибках lifecycle;
   - [x] типизированный `Signal` с управлением подписками;
   - [x] общий quality pipeline.
-- [ ] **M0.3 — TypeScript → Inspector:** технический spike и минимальный `@field`.
+- [x] **M0.3 — TypeScript → Inspector**
+  - [x] технический spike декораторов TypeScript/Vite;
+  - [x] `@field` и наследуемые Inspector-метаданные;
+  - [x] чтение и безопасное изменение значений;
+  - [x] ограничения `min`, `max`, `step` и `readonly`;
+  - [x] общий quality pipeline.
 - [ ] **M0.4 — Renderer:** API, Transform, SpriteRenderer и TextureAsset.
 - [ ] **M0.5 — Forge Editor:** минимальные Hierarchy, Scene, Inspector и Assets.
 - [ ] **M0.6 — Living Scene:** сквозной сценарий `speed 220 → 350 → runtime`.
